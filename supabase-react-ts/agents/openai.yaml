@@ -1,0 +1,4 @@
+interface:
+  display_name: "Supabase React TS"
+  short_description: "Scaffold Supabase-backed React apps"
+  default_prompt: "Use $supabase-react-ts to build a small Supabase-backed React TypeScript app."

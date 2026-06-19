@@ -1,0 +1,65 @@
+.nav {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 1.1rem;
+  min-height: 100%;
+
+  section {
+    display: grid;
+    gap: 0.35rem;
+  }
+}
+
+.staticNav {
+  align-content: start;
+}
+
+.dynamicNav {
+  display: grid;
+  align-content: end;
+  min-height: 0;
+}
+
+.navDetails {
+  min-height: 0;
+
+  summary {
+    cursor: pointer;
+    color: var(--color-muted);
+    font-size: 0.74rem;
+    font-weight: 800;
+    list-style-position: outside;
+    text-transform: uppercase;
+  }
+}
+
+.workspaceLinks {
+  display: grid;
+  gap: 0.35rem;
+  max-height: min(38svh, 24rem);
+  margin-top: 0.55rem;
+  overflow: auto;
+
+  p {
+    margin: 0;
+    color: var(--color-muted);
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+}
+
+.navLink {
+  overflow: hidden;
+  border-radius: 7px;
+  padding: 0.55rem 0.65rem;
+  color: var(--color-text);
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.navLink:hover,
+.active {
+  background: var(--color-surface);
+  color: var(--color-accent-strong);
+}

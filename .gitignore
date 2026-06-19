@@ -1,0 +1,11 @@
+.DS_Store
+node_modules/
+
+# Starter assets should stay source-only.
+**/assets/starter/dist/
+**/assets/starter/node_modules/
+**/assets/starter/playwright-report/
+**/assets/starter/test-results/
+**/assets/starter/public/config.local.json
+**/assets/starter/supabase/.branches/
+**/assets/starter/supabase/.temp/

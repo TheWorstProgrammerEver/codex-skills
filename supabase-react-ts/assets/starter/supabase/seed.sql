@@ -1,0 +1,2 @@
+-- Seed data intentionally starts empty.
+-- Tests create isolated data and clean up after themselves.

@@ -1,0 +1,31 @@
+.screen {
+  display: grid;
+  gap: 1rem;
+
+  header {
+    display: grid;
+    gap: 0.2rem;
+
+    h2,
+    p {
+      margin: 0;
+    }
+
+    p {
+      color: var(--color-muted);
+      font-weight: 800;
+    }
+  }
+}
+
+.members {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding-left: 1.1rem;
+
+  span {
+    color: var(--color-muted);
+    font-weight: 700;
+  }
+}

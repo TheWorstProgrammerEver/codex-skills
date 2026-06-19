@@ -1,0 +1,10 @@
+{
+  "name": "codex-skills",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "install:skills": "node scripts/install-skills.mjs",
+    "list:skills": "node scripts/install-skills.mjs --list"
+  }
+}

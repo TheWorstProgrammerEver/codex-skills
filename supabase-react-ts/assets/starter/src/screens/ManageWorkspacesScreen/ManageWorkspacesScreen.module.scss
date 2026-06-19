@@ -1,0 +1,14 @@
+.screen {
+  display: grid;
+  gap: 1rem;
+}
+
+.workspaceDetails {
+  display: grid;
+  gap: 0.2rem;
+
+  span {
+    color: var(--color-muted);
+    font-weight: 700;
+  }
+}
