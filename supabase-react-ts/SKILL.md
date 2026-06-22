@@ -7,27 +7,31 @@ description: Build, scaffold, or refactor Supabase-backed React TypeScript apps 
 
 Use this skill to build small MicroSaaS-style apps with a React TSX client, Supabase Auth/Postgres/Edge Functions, strict RLS, local/LAN developer ergonomics, and pragmatic test coverage.
 
-Reference starter: `assets/starter/`
+Reference starters:
+
+- `assets/auth-starter/`: default auth-only skeleton for new MicroSaaS products.
+- `assets/starter/`: Team Tasks worked example for richer app-data, RLS, and command/query patterns.
 
 ## Core Workflow
 
-1. Inspect the target repo first. If it is empty, copy `assets/starter/` into the project root.
+1. Inspect the target repo first. If it is empty, scaffold from `assets/auth-starter/` unless the user explicitly asks for the Team Tasks worked example.
 2. Read `references/project-style.md` before making structure, UI, dependency, or testing choices.
-3. If using the starter, read `references/starter-guide.md` before renaming or wiring config.
-4. For data boundaries, Edge Functions, or request handling, read `references/architecture.md`.
-5. For schema, RLS, direct-table access, or security tests, read `references/supabase-security.md`.
-6. For runtime config, Netlify builds, or local/LAN scripts, read `references/config-and-deploy.md`.
-7. Implement the usable app first, not a marketing page. Keep files small and concerns separated.
-8. Verify with the narrowest meaningful set: `npm run lint`, `npm test`, `npm run build`, Playwright for UI flows, and `npm run test:security` for RLS/function changes.
+3. Read `references/starter-guide.md` before scaffolding, choosing starter mode, renaming, or wiring config.
+4. For auth-only skeletons, run `scripts/scaffold.mjs` and skip app-data references until a persisted feature is requested.
+5. For data boundaries, Edge Functions, or request handling, read `references/architecture.md`.
+6. For schema, RLS, direct-table access, or security tests, read `references/supabase-security.md`.
+7. For runtime config, Netlify builds, or local/LAN scripts, read `references/config-and-deploy.md`.
+8. Implement the usable app first, not a marketing page. Keep files small and concerns separated.
+9. Verify with the narrowest meaningful set: `npm run lint`, `npm test`, `npm run build`, Playwright for UI flows, and `npm run test:security` for RLS/function changes.
 
 ## Default Shape
 
 - Client: Vite, React, TypeScript, React Router, SCSS modules.
-- Backend: Supabase Auth, Postgres migrations, Edge Functions, RLS as a mandatory safety net.
-- Boundary style: command/query request types, shared identifiers/types in `common`, client-side function invoker handlers, function-side dispatcher handlers.
+- Backend: Supabase Auth first; add Postgres migrations, Edge Functions, and RLS as mandatory safety nets when app data is introduced.
+- Boundary style: command/query request types, shared identifiers/types in `common`, client-side function invoker handlers, and function-side dispatcher handlers once product data crosses the client/function boundary.
 - Runtime config: committed `public/config.js` loader, committed substitutable `public/config.json`, ignored `public/config.local.json`, test config under `tests/visual`.
 - Developer workflow: `npm run get-going` starts dependencies, Docker/Supabase/functions/Vite, writes local config, exposes LAN URLs, and prints endpoints. `npm run all-done` winds everything down.
-- Tests: unit tests for pure domain/state, visual tests for core UI, local Supabase security tests for both Edge Functions and direct publishable-key table access.
+- Tests: unit tests for pure domain/state, visual tests for core UI, and local Supabase security tests for both Edge Functions and direct publishable-key table access once app tables exist.
 
 ## Guardrails
 
@@ -38,3 +42,4 @@ Reference starter: `assets/starter/`
 - Avoid large global stores. Prefer composed hooks, view models, and pure state update helpers.
 - Mutating commands should return minimal affected DTOs; explicit queries load explicit state.
 - Keep local-only generated files ignored. Do not commit machine-specific LAN config.
+- After scaffolding, run a placeholder/name sweep for `Team Tasks|teamTasks|team_tasks|team-tasks|__APP_` and fix any unintended matches before finishing.

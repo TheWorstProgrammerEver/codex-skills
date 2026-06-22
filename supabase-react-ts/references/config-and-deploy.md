@@ -71,7 +71,7 @@ Keep app config distinct from Supabase as an implementation detail:
 
 ```json
 {
-  "appName": "Team Tasks",
+  "appName": "Example App",
   "buildVersion": "#{BUILD_VERSION}#",
   "environment": "#{ENVIRONMENT}#",
   "auth": {

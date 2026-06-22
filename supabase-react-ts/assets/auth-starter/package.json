@@ -1,0 +1,43 @@
+{
+  "name": "__APP_PACKAGE_NAME__",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "get-going": "node scripts/get-going.mjs",
+    "all-done": "node scripts/all-done.mjs",
+    "build": "tsc -b && vite build",
+    "build:netlify": "node scripts/build-netlify.mjs",
+    "preview": "vite preview",
+    "lint": "tsc -b",
+    "test": "vitest run",
+    "test:security": "vitest run --config vitest.security.config.ts",
+    "test:visual": "playwright test",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:status": "supabase status",
+    "supabase:reset": "supabase db reset",
+    "supabase:migration": "supabase db diff --local --file",
+    "supabase:functions:serve": "supabase functions serve",
+    "supabase:functions:deploy": "supabase functions deploy"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.108.1",
+    "@vitejs/plugin-react": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "react-router-dom": "latest",
+    "sass": "latest",
+    "typescript": "latest",
+    "vite": "latest"
+  },
+  "devDependencies": {
+    "@playwright/test": "latest",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "supabase": "^2.105.0",
+    "vitest": "latest"
+  }
+}
