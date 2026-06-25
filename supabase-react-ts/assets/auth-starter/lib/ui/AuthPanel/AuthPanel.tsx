@@ -5,6 +5,8 @@ import {
   type AuthenticationType,
   type SupportedAuthenticationTypes
 } from '../../auth/authenticationTypes'
+import { Button } from '../Button/Button'
+import { ComponentRoleContext } from '../ComponentRoleContext/ComponentRoleContext'
 import styles from './AuthPanel.module.scss'
 
 type AuthPanelProps = {
@@ -172,22 +174,30 @@ export const AuthPanel = ({
         <div className={styles.actions}>
           {selectedType === 'emailPassword' && (
             <>
-              <button type="submit" disabled={busy}>Sign in</button>
-              <button type="button" disabled={busy} onClick={() => submit('create')}>Create account</button>
+              <ComponentRoleContext role="primary">
+                <Button type="submit" disabled={busy}>Sign in</Button>
+              </ComponentRoleContext>
+              <Button type="button" disabled={busy} onClick={() => submit('create')}>Create account</Button>
             </>
           )}
 
           {selectedType === 'otp' && (
             <>
-              <button type="submit" disabled={busy}>{otpSent ? 'Verify code' : 'Send code'}</button>
+              <ComponentRoleContext role="primary">
+                <Button type="submit" disabled={busy}>{otpSent ? 'Verify code' : 'Send code'}</Button>
+              </ComponentRoleContext>
               {otpSent && (
-                <button type="button" disabled={busy} onClick={() => submit('request-otp')}>Send new code</button>
+                <ComponentRoleContext role="tertiary">
+                  <Button type="button" disabled={busy} onClick={() => submit('request-otp')}>Send new code</Button>
+                </ComponentRoleContext>
               )}
             </>
           )}
 
           {selectedType === 'magicLink' && (
-            <button type="submit" disabled={busy}>Send magic link</button>
+            <ComponentRoleContext role="primary">
+              <Button type="submit" disabled={busy}>Send magic link</Button>
+            </ComponentRoleContext>
           )}
         </div>
       </form>

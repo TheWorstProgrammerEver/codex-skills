@@ -1,3 +1,6 @@
+import { LogOut } from 'lucide-react'
+import { Button } from '../../../lib/ui/Button/Button'
+import { ComponentRoleContext } from '../../../lib/ui/ComponentRoleContext/ComponentRoleContext'
 import { useProfileScreenViewModel } from './useProfileScreenViewModel'
 import styles from './ProfileScreen.module.scss'
 
@@ -21,7 +24,12 @@ export const ProfileScreen = () => {
         </div>
       </dl>
 
-      <button type="button" onClick={() => void viewModel.signOut()}>Log out</button>
+      <ComponentRoleContext role="tertiary">
+        <Button type="button" onClick={() => void viewModel.signOut()}>
+          <LogOut aria-hidden="true" />
+          Log out
+        </Button>
+      </ComponentRoleContext>
     </section>
   )
 }

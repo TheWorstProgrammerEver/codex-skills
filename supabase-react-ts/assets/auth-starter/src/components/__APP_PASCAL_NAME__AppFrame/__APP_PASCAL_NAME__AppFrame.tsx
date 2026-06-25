@@ -1,5 +1,8 @@
+import { LogOut } from 'lucide-react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { AppFrame } from '../../../lib/ui/AppFrame/AppFrame'
+import { Button } from '../../../lib/ui/Button/Button'
+import { ComponentRoleContext } from '../../../lib/ui/ComponentRoleContext/ComponentRoleContext'
 import { useAuthContext } from '../../contexts/AuthContext'
 import styles from './__APP_PASCAL_NAME__AppFrame.module.scss'
 
@@ -19,7 +22,12 @@ export const __APP_PASCAL_NAME__AppFrame = () => {
           <summary>{currentAccount?.email}</summary>
           <div>
             <NavLink to="/profile">Profile</NavLink>
-            <button type="button" onClick={() => void signOut()}>Log out</button>
+            <ComponentRoleContext role="tertiary">
+              <Button type="button" onClick={() => void signOut()}>
+                <LogOut aria-hidden="true" />
+                Log out
+              </Button>
+            </ComponentRoleContext>
           </div>
         </details>
       )}

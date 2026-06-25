@@ -39,6 +39,7 @@ Reference starters:
 - Keep Supabase as an implementation detail behind data/dispatch boundaries in the client.
 - Do not rely on Edge Functions alone for security. Malicious users can call tables directly with the publishable key; RLS must be correct.
 - Prefer semantic HTML, native controls, and reusable layout primitives from `lib/ui`.
+- Use the starter action hierarchy: one clear primary action, quiet supporting actions, destructive intent styling, Lucide icons, and responsive icon/text content.
 - Avoid large global stores. Prefer composed hooks, view models, and pure state update helpers.
 - Mutating commands should return minimal affected DTOs; explicit queries load explicit state.
 - Keep local-only generated files ignored. Do not commit machine-specific LAN config.

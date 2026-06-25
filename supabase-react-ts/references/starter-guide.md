@@ -92,7 +92,7 @@ Replace in this order:
 7. Screens and app-specific components.
 8. Tests.
 
-Keep the auth panel, app frame, dialog, list, loader, config, and workflow scripts unless the product has a clear reason to diverge.
+Keep the auth panel, app frame, dialog, action-role controls, responsive icon content, list, loader, config, and workflow scripts unless the product has a clear reason to diverge.
 
 ## Verification Baseline
 

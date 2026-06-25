@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from 'react'
 import type { LoaderState } from '../../../lib/hooks/useLoader'
 import { AsynchronousSubmitButton } from '../../../lib/ui/AsynchronousSubmitButton/AsynchronousSubmitButton'
+import { ComponentRoleContext } from '../../../lib/ui/ComponentRoleContext/ComponentRoleContext'
 import styles from './WorkspaceForm.module.scss'
 
 type WorkspaceFormProps = {
@@ -44,7 +45,9 @@ export const WorkspaceForm = ({ loader, onSubmit }: WorkspaceFormProps) => {
 
       {loader.error && <p className={styles.error} role="alert">{loader.error}</p>}
 
-      <AsynchronousSubmitButton loader={loader}>Create workspace</AsynchronousSubmitButton>
+      <ComponentRoleContext role="primary">
+        <AsynchronousSubmitButton loader={loader}>Create workspace</AsynchronousSubmitButton>
+      </ComponentRoleContext>
     </form>
   )
 }

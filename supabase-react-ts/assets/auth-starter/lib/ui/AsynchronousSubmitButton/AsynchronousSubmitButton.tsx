@@ -1,5 +1,6 @@
 import { useId, type ButtonHTMLAttributes, type ReactNode } from 'react'
 import type { LoaderState } from '../../hooks/useLoader'
+import { Button } from '../Button/Button'
 import styles from './AsynchronousSubmitButton.module.scss'
 
 type AsynchronousSubmitButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'type'> & {
@@ -19,7 +20,7 @@ export const AsynchronousSubmitButton = ({
 
   return (
     <>
-      <button
+      <Button
         {...buttonProps}
         type="submit"
         aria-busy={loader.busy}
@@ -27,7 +28,7 @@ export const AsynchronousSubmitButton = ({
         disabled={disabled || loader.busy}
       >
         {children}
-      </button>
+      </Button>
 
       {loader.busy && (
         <span className={styles.status} id={statusId} role="status">

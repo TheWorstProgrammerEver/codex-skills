@@ -57,23 +57,3 @@
     font-weight: 800;
   }
 }
-
-@media (max-width: 560px) {
-  .item,
-  .withLeading {
-    grid-template-columns: 2.2rem minmax(0, 1fr);
-  }
-
-  .item {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .actions {
-    grid-column: 1 / -1;
-    justify-content: stretch;
-
-    > * {
-      flex: 1;
-    }
-  }
-}

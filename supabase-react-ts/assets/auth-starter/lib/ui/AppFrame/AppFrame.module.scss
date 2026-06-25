@@ -42,29 +42,14 @@
 }
 
 .menuButton {
-  display: grid;
-  align-content: center;
-  justify-items: center;
-  gap: 0.22rem;
   width: 2.45rem;
   min-height: 2.45rem;
-  border-color: var(--color-border);
   padding: 0;
-  background: var(--color-surface);
-  color: var(--color-text);
 
-  span {
-    display: block;
-    width: 1.15rem;
-    height: 0.13rem;
-    border-radius: 999px;
-    background: currentColor;
+  svg {
+    width: 1.25rem;
+    height: 1.25rem;
   }
-}
-
-.menuButton:hover {
-  border-color: var(--color-accent-strong);
-  background: var(--color-surface-raised);
 }
 
 .brand {
@@ -172,9 +157,12 @@
 
   .accountMenu {
     grid-column: 2;
-    justify-self: start;
+    width: 100%;
+    overflow: hidden;
+    justify-self: stretch;
 
     summary {
+      display: block;
       max-width: 100%;
     }
   }

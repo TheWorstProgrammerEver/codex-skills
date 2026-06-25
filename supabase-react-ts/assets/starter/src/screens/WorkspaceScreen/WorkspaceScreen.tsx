@@ -1,7 +1,11 @@
+import { ArrowLeft, Plus, UserPlus } from 'lucide-react'
 import { AppDialog } from '../../../lib/ui/AppDialog/AppDialog'
+import { Button } from '../../../lib/ui/Button/Button'
+import { ComponentRoleContext } from '../../../lib/ui/ComponentRoleContext/ComponentRoleContext'
 import { HeaderWithActions } from '../../../lib/ui/HeaderWithActions/HeaderWithActions'
 import { LoaderContainer } from '../../../lib/ui/LoaderContainer/LoaderContainer'
 import { Section } from '../../../lib/ui/Section/Section'
+import { ResponsiveContent } from '../../../lib/ui/ResponsiveContent/ResponsiveContent'
 import { InviteMemberForm } from '../../components/InviteMemberForm/InviteMemberForm'
 import { TaskForm } from '../../components/TaskForm/TaskForm'
 import { TaskList } from '../../components/TaskList/TaskList'
@@ -24,7 +28,12 @@ export const WorkspaceScreen = () => {
     return (
       <section className={styles.screen} aria-labelledby="missing-workspace-title">
         <h2 id="missing-workspace-title">Workspace not found</h2>
-        <button type="button" onClick={viewModel.goToWorkspaces}>Back to workspaces</button>
+        <ComponentRoleContext role="tertiary">
+          <Button type="button" onClick={viewModel.goToWorkspaces}>
+            <ArrowLeft aria-hidden="true" />
+            Back to workspaces
+          </Button>
+        </ComponentRoleContext>
       </section>
     )
   }
@@ -40,8 +49,14 @@ export const WorkspaceScreen = () => {
         )}
         actions={(
           <>
-            <button type="button" onClick={() => viewModel.setInviteOpen(true)}>Invite</button>
-            <button type="button" onClick={() => viewModel.setTaskOpen(true)}>Add task</button>
+            <Button type="button" onClick={() => viewModel.setInviteOpen(true)}>
+              <ResponsiveContent icon={<UserPlus />}>Invite</ResponsiveContent>
+            </Button>
+            <ComponentRoleContext role="primary">
+              <Button type="button" onClick={() => viewModel.setTaskOpen(true)}>
+                <ResponsiveContent icon={<Plus />}>Add task</ResponsiveContent>
+              </Button>
+            </ComponentRoleContext>
           </>
         )}
       />

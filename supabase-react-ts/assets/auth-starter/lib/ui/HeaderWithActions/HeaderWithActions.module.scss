@@ -20,15 +20,6 @@
 
 @media (max-width: 760px) {
   .header {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .actions {
-    justify-content: stretch;
-
-    > * {
-      flex: 1 1 auto;
-    }
+    gap: 0.65rem;
   }
 }

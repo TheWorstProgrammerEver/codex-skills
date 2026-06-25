@@ -76,7 +76,14 @@ Use `lib/ui` primitives as the design-system seed:
 - `AppFrame` for authenticated header/sidebar/main layout.
 - `AppDialog` for modal forms with stable header/content/footer slots.
 - `AuthPanel` for Supabase-backed auth flows.
+- `Button`, `ActionLink`, `ComponentRoleContext`, and `ResponsiveContent` for action hierarchy.
 - `Section`, `List`, `HeaderWithActions`, `LoaderContainer`, `AsynchronousSubmitButton` for common app surfaces.
+
+Use Lucide icons for familiar actions. Arrange headings at the leading edge and concise actions at the trailing edge. Usually show one primary action per action area; leave supporting actions secondary or tertiary and use the destructive role for irreversible actions. Prefer `ResponsiveContent` when familiar actions should retain text on larger screens and collapse to an icon on compact screens.
+
+Let components interpret semantic role context instead of passing styling variants through every call site. Keep native button/link semantics and accessible names. Do not apply ARIA menu semantics to arbitrary form controls.
+
+Anchor floating option panels with logical inset properties, cap their inline size to the viewport, and verify their bounding rectangle at compact widths. Any absolutely positioned visually-hidden content must have a local positioned ancestor so it cannot enlarge an outer scroll container.
 
 ## State
 

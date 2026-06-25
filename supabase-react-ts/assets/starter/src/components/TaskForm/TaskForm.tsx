@@ -2,6 +2,7 @@ import { type FormEvent, useState } from 'react'
 import type { TaskInput } from '../../../common/appTypes'
 import type { LoaderState } from '../../../lib/hooks/useLoader'
 import { AsynchronousSubmitButton } from '../../../lib/ui/AsynchronousSubmitButton/AsynchronousSubmitButton'
+import { ComponentRoleContext } from '../../../lib/ui/ComponentRoleContext/ComponentRoleContext'
 import styles from './TaskForm.module.scss'
 
 type TaskFormProps = {
@@ -34,7 +35,9 @@ export const TaskForm = ({ loader, onSubmit }: TaskFormProps) => {
 
       {loader.error && <p className={styles.error} role="alert">{loader.error}</p>}
 
-      <AsynchronousSubmitButton loader={loader}>Add task</AsynchronousSubmitButton>
+      <ComponentRoleContext role="primary">
+        <AsynchronousSubmitButton loader={loader}>Add task</AsynchronousSubmitButton>
+      </ComponentRoleContext>
     </form>
   )
 }

@@ -1,4 +1,8 @@
 import { type ReactNode, useEffect, useId, useRef } from 'react'
+import { X } from 'lucide-react'
+import { Button } from '../Button/Button'
+import { ComponentRoleContext } from '../ComponentRoleContext/ComponentRoleContext'
+import { ResponsiveContent } from '../ResponsiveContent/ResponsiveContent'
 import styles from './AppDialog.module.scss'
 
 type AppDialogProps = {
@@ -54,7 +58,11 @@ export const AppDialog = ({ children, footer, open, title, onClose }: AppDialogP
         <article className={styles.panel}>
           <header className={styles.header}>
             <h2 id={titleId}>{title}</h2>
-            <button type="button" onClick={onClose}>Close</button>
+            <ComponentRoleContext role="tertiary">
+              <Button type="button" onClick={onClose}>
+                <ResponsiveContent icon={<X />}>Close</ResponsiveContent>
+              </Button>
+            </ComponentRoleContext>
           </header>
 
           <div className={styles.content}>

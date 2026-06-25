@@ -1,4 +1,7 @@
 import { type ReactNode, useId, useState } from 'react'
+import { Menu, X } from 'lucide-react'
+import { Button } from '../Button/Button'
+import { ComponentRoleContext } from '../ComponentRoleContext/ComponentRoleContext'
 import styles from './AppFrame.module.scss'
 
 type AppFrameProps = {
@@ -37,18 +40,18 @@ export const AppFrame = ({
   return (
     <div className={frameClassName}>
       <header className={styles.header}>
-        <button
-          className={styles.menuButton}
-          type="button"
-          aria-controls={navigationId}
-          aria-expanded={navigationOpen}
-          aria-label={navigationOpen ? 'Hide navigation' : 'Show navigation'}
-          onClick={() => setNavigationOpen((isOpen) => !isOpen)}
-        >
-          <span aria-hidden="true" />
-          <span aria-hidden="true" />
-          <span aria-hidden="true" />
-        </button>
+        <ComponentRoleContext role="secondary">
+          <Button
+            className={styles.menuButton}
+            type="button"
+            aria-controls={navigationId}
+            aria-expanded={navigationOpen}
+            aria-label={navigationOpen ? 'Hide navigation' : 'Show navigation'}
+            onClick={() => setNavigationOpen((isOpen) => !isOpen)}
+          >
+            {navigationOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
+          </Button>
+        </ComponentRoleContext>
 
         <div className={styles.brand}>
           <p>{environment}</p>

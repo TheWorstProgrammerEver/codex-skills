@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from 'react'
 import type { LoaderState } from '../../../lib/hooks/useLoader'
 import { AsynchronousSubmitButton } from '../../../lib/ui/AsynchronousSubmitButton/AsynchronousSubmitButton'
+import { ComponentRoleContext } from '../../../lib/ui/ComponentRoleContext/ComponentRoleContext'
 import styles from './InviteMemberForm.module.scss'
 
 type InviteMemberFormProps = {
@@ -32,7 +33,9 @@ export const InviteMemberForm = ({ loader, onSubmit }: InviteMemberFormProps) =>
 
       {loader.error && <p className={styles.error} role="alert">{loader.error}</p>}
 
-      <AsynchronousSubmitButton loader={loader}>Send invite</AsynchronousSubmitButton>
+      <ComponentRoleContext role="primary">
+        <AsynchronousSubmitButton loader={loader}>Send invite</AsynchronousSubmitButton>
+      </ComponentRoleContext>
     </form>
   )
 }

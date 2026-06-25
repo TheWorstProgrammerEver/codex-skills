@@ -1,8 +1,12 @@
-import { Link } from 'react-router-dom'
+import { ArrowRight, Plus } from 'lucide-react'
 import { AppDialog } from '../../../lib/ui/AppDialog/AppDialog'
+import { ActionLink } from '../../../lib/ui/Button/ActionLink'
+import { Button } from '../../../lib/ui/Button/Button'
+import { ComponentRoleContext } from '../../../lib/ui/ComponentRoleContext/ComponentRoleContext'
 import { HeaderWithActions } from '../../../lib/ui/HeaderWithActions/HeaderWithActions'
 import { List, ListItem } from '../../../lib/ui/List/List'
 import { Section } from '../../../lib/ui/Section/Section'
+import { ResponsiveContent } from '../../../lib/ui/ResponsiveContent/ResponsiveContent'
 import { InvitationPanel } from '../../components/InvitationPanel/InvitationPanel'
 import { WorkspaceForm } from '../../components/WorkspaceForm/WorkspaceForm'
 import { useManageWorkspacesScreenViewModel } from './useManageWorkspacesScreenViewModel'
@@ -15,7 +19,13 @@ export const ManageWorkspacesScreen = () => {
     <section className={styles.screen} aria-labelledby="manage-workspaces-title">
       <HeaderWithActions
         header={<h2 id="manage-workspaces-title">Workspaces</h2>}
-        actions={<button type="button" onClick={() => viewModel.setCreateOpen(true)}>Create workspace</button>}
+        actions={(
+          <ComponentRoleContext role="primary">
+            <Button type="button" onClick={() => viewModel.setCreateOpen(true)}>
+              <ResponsiveContent icon={<Plus />}>Create workspace</ResponsiveContent>
+            </Button>
+          </ComponentRoleContext>
+        )}
       />
 
       <Section title="Invitations">
@@ -40,7 +50,13 @@ export const ManageWorkspacesScreen = () => {
                     <span>{workspace.members.length} members, {workspace.tasks.length} tasks</span>
                   </span>
                 )}
-                actions={<Link to={`/workspaces/${workspace.id}`}>Open</Link>}
+                actions={(
+                  <ComponentRoleContext role="tertiary">
+                    <ActionLink to={`/workspaces/${workspace.id}`}>
+                      <ResponsiveContent icon={<ArrowRight />}>Open</ResponsiveContent>
+                    </ActionLink>
+                  </ComponentRoleContext>
+                )}
               />
             ))}
           </List>
