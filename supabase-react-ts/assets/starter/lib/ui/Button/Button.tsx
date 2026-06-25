@@ -2,7 +2,7 @@ import { forwardRef, type ButtonHTMLAttributes } from 'react'
 import { useComponentRoleContext } from '../ComponentRoleContext/ComponentRoleContext'
 import styles from './Button.module.scss'
 
-type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement>
+export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement>
 
 const roleClassNames = {
   primary: styles.primary,

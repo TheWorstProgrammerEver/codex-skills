@@ -1,9 +1,8 @@
 import { Check, RotateCcw, Trash2 } from 'lucide-react'
 import type { Task } from '../../../common/appTypes'
-import { Button } from '../../../lib/ui/Button/Button'
 import { ComponentRoleContext } from '../../../lib/ui/ComponentRoleContext/ComponentRoleContext'
 import { List, ListItem } from '../../../lib/ui/List/List'
-import { ResponsiveContent } from '../../../lib/ui/ResponsiveContent/ResponsiveContent'
+import { ResponsiveButton } from '../../../lib/ui/ResponsiveButton/ResponsiveButton'
 import { taskStatusLabel } from '../../domain/tasks'
 import styles from './TaskList.module.scss'
 
@@ -33,16 +32,20 @@ export const TaskList = ({ onDelete, onToggle, tasks }: TaskListProps) => {
           actions={(
             <>
               <ComponentRoleContext role="tertiary">
-                <Button type="button" onClick={() => onToggle(task)}>
-                  <ResponsiveContent icon={task.status === 'done' ? <RotateCcw /> : <Check />}>
-                    {task.status === 'done' ? 'Reopen' : 'Done'}
-                  </ResponsiveContent>
-                </Button>
+                <ResponsiveButton
+                  type="button"
+                  icon={task.status === 'done' ? <RotateCcw /> : <Check />}
+                  label={task.status === 'done' ? 'Reopen' : 'Done'}
+                  onClick={() => onToggle(task)}
+                />
               </ComponentRoleContext>
               <ComponentRoleContext role="destructive">
-                <Button type="button" onClick={() => onDelete(task.id)}>
-                  <ResponsiveContent icon={<Trash2 />}>Delete</ResponsiveContent>
-                </Button>
+                <ResponsiveButton
+                  type="button"
+                  icon={<Trash2 />}
+                  label="Delete"
+                  onClick={() => onDelete(task.id)}
+                />
               </ComponentRoleContext>
             </>
           )}

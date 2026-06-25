@@ -4,8 +4,8 @@ import { Button } from '../../../lib/ui/Button/Button'
 import { ComponentRoleContext } from '../../../lib/ui/ComponentRoleContext/ComponentRoleContext'
 import { HeaderWithActions } from '../../../lib/ui/HeaderWithActions/HeaderWithActions'
 import { LoaderContainer } from '../../../lib/ui/LoaderContainer/LoaderContainer'
+import { ResponsiveButton } from '../../../lib/ui/ResponsiveButton/ResponsiveButton'
 import { Section } from '../../../lib/ui/Section/Section'
-import { ResponsiveContent } from '../../../lib/ui/ResponsiveContent/ResponsiveContent'
 import { InviteMemberForm } from '../../components/InviteMemberForm/InviteMemberForm'
 import { TaskForm } from '../../components/TaskForm/TaskForm'
 import { TaskList } from '../../components/TaskList/TaskList'
@@ -49,13 +49,19 @@ export const WorkspaceScreen = () => {
         )}
         actions={(
           <>
-            <Button type="button" onClick={() => viewModel.setInviteOpen(true)}>
-              <ResponsiveContent icon={<UserPlus />}>Invite</ResponsiveContent>
-            </Button>
+            <ResponsiveButton
+              type="button"
+              icon={<UserPlus />}
+              label="Invite"
+              onClick={() => viewModel.setInviteOpen(true)}
+            />
             <ComponentRoleContext role="primary">
-              <Button type="button" onClick={() => viewModel.setTaskOpen(true)}>
-                <ResponsiveContent icon={<Plus />}>Add task</ResponsiveContent>
-              </Button>
+              <ResponsiveButton
+                type="button"
+                icon={<Plus />}
+                label="Add task"
+                onClick={() => viewModel.setTaskOpen(true)}
+              />
             </ComponentRoleContext>
           </>
         )}

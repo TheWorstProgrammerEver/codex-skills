@@ -1,9 +1,8 @@
 import { Check, X } from 'lucide-react'
 import type { PendingInvitation } from '../../../common/appTypes'
-import { Button } from '../../../lib/ui/Button/Button'
 import { ComponentRoleContext } from '../../../lib/ui/ComponentRoleContext/ComponentRoleContext'
 import { List, ListItem } from '../../../lib/ui/List/List'
-import { ResponsiveContent } from '../../../lib/ui/ResponsiveContent/ResponsiveContent'
+import { ResponsiveButton } from '../../../lib/ui/ResponsiveButton/ResponsiveButton'
 
 type InvitationPanelProps = {
   invitations: PendingInvitation[]
@@ -29,14 +28,20 @@ export const InvitationPanel = ({ invitations, onAccept, onReject }: InvitationP
           actions={(
             <>
               <ComponentRoleContext role="primary">
-                <Button type="button" onClick={() => onAccept(invitation.id)}>
-                  <ResponsiveContent icon={<Check />}>Accept</ResponsiveContent>
-                </Button>
+                <ResponsiveButton
+                  type="button"
+                  icon={<Check />}
+                  label="Accept"
+                  onClick={() => onAccept(invitation.id)}
+                />
               </ComponentRoleContext>
               <ComponentRoleContext role="destructive">
-                <Button type="button" onClick={() => onReject(invitation.id)}>
-                  <ResponsiveContent icon={<X />}>Reject</ResponsiveContent>
-                </Button>
+                <ResponsiveButton
+                  type="button"
+                  icon={<X />}
+                  label="Reject"
+                  onClick={() => onReject(invitation.id)}
+                />
               </ComponentRoleContext>
             </>
           )}

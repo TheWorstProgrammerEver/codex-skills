@@ -1,12 +1,13 @@
 import { ArrowRight, Plus } from 'lucide-react'
 import { AppDialog } from '../../../lib/ui/AppDialog/AppDialog'
 import { ActionLink } from '../../../lib/ui/Button/ActionLink'
-import { Button } from '../../../lib/ui/Button/Button'
 import { ComponentRoleContext } from '../../../lib/ui/ComponentRoleContext/ComponentRoleContext'
 import { HeaderWithActions } from '../../../lib/ui/HeaderWithActions/HeaderWithActions'
 import { List, ListItem } from '../../../lib/ui/List/List'
-import { Section } from '../../../lib/ui/Section/Section'
+import { IconAndLabel, IconOnly } from '../../../lib/ui/ResponsiveContent/IconContent'
 import { ResponsiveContent } from '../../../lib/ui/ResponsiveContent/ResponsiveContent'
+import { ResponsiveButton } from '../../../lib/ui/ResponsiveButton/ResponsiveButton'
+import { Section } from '../../../lib/ui/Section/Section'
 import { InvitationPanel } from '../../components/InvitationPanel/InvitationPanel'
 import { WorkspaceForm } from '../../components/WorkspaceForm/WorkspaceForm'
 import { useManageWorkspacesScreenViewModel } from './useManageWorkspacesScreenViewModel'
@@ -21,9 +22,12 @@ export const ManageWorkspacesScreen = () => {
         header={<h2 id="manage-workspaces-title">Workspaces</h2>}
         actions={(
           <ComponentRoleContext role="primary">
-            <Button type="button" onClick={() => viewModel.setCreateOpen(true)}>
-              <ResponsiveContent icon={<Plus />}>Create workspace</ResponsiveContent>
-            </Button>
+            <ResponsiveButton
+              type="button"
+              icon={<Plus />}
+              label="Create workspace"
+              onClick={() => viewModel.setCreateOpen(true)}
+            />
           </ComponentRoleContext>
         )}
       />
@@ -53,7 +57,14 @@ export const ManageWorkspacesScreen = () => {
                 actions={(
                   <ComponentRoleContext role="tertiary">
                     <ActionLink to={`/workspaces/${workspace.id}`}>
-                      <ResponsiveContent icon={<ArrowRight />}>Open</ResponsiveContent>
+                      <ResponsiveContent
+                        compact={<IconOnly icon={<ArrowRight />} label={`Open ${workspace.name}`} />}
+                        nonCompact={(
+                          <IconAndLabel icon={<ArrowRight />} label={`Open ${workspace.name}`}>
+                            Open
+                          </IconAndLabel>
+                        )}
+                      />
                     </ActionLink>
                   </ComponentRoleContext>
                 )}

@@ -63,43 +63,8 @@
 }
 
 .accountMenu {
-  position: relative;
   min-width: 0;
-
-  summary {
-    overflow: hidden;
-    cursor: pointer;
-    font-weight: 800;
-    list-style: none;
-    max-width: min(42vw, 22rem);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  summary::-webkit-details-marker {
-    display: none;
-  }
-
-  div {
-    position: absolute;
-    z-index: 2;
-    right: 0;
-    display: grid;
-    gap: 0.45rem;
-    min-width: 10rem;
-    margin-top: 0.6rem;
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    padding: 0.6rem;
-    background: var(--color-surface);
-    box-shadow: 0 16px 40px rgb(0 0 0 / 18%);
-  }
-
-  a {
-    color: var(--color-text);
-    font-weight: 800;
-    text-decoration: none;
-  }
+  justify-self: end;
 }
 
 .backdrop {
@@ -151,20 +116,8 @@
       "main" 1fr / minmax(0, 1fr);
   }
 
-  .header {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-
   .accountMenu {
-    grid-column: 2;
-    width: 100%;
-    overflow: hidden;
-    justify-self: stretch;
-
-    summary {
-      display: block;
-      max-width: 100%;
-    }
+    justify-self: end;
   }
 
   .sidebar {

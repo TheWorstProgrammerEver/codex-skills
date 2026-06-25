@@ -76,10 +76,17 @@ Use `lib/ui` primitives as the design-system seed:
 - `AppFrame` for authenticated header/sidebar/main layout.
 - `AppDialog` for modal forms with stable header/content/footer slots.
 - `AuthPanel` for Supabase-backed auth flows.
-- `Button`, `ActionLink`, `ComponentRoleContext`, and `ResponsiveContent` for action hierarchy.
+- `Button`, `ActionLink`, `ComponentRoleContext`, `ResponsiveButton`, and responsive content primitives for action hierarchy.
 - `Section`, `List`, `HeaderWithActions`, `LoaderContainer`, `AsynchronousSubmitButton` for common app surfaces.
 
-Use Lucide icons for familiar actions. Arrange headings at the leading edge and concise actions at the trailing edge. Usually show one primary action per action area; leave supporting actions secondary or tertiary and use the destructive role for irreversible actions. Prefer `ResponsiveContent` when familiar actions should retain text on larger screens and collapse to an icon on compact screens.
+Use Lucide icons for familiar actions. Arrange headings at the leading edge and concise actions at the trailing edge. Usually show one primary action per action area; leave supporting actions secondary or tertiary and use the destructive role for irreversible actions.
+
+Keep responsive visibility separate from content layout:
+
+- `ResponsiveContent` chooses arbitrary compact and non-compact content without knowing what either contains.
+- `IconAndLabel` and `IconOnly` own icon, label, and accessible-name presentation.
+- `ResponsiveButton` is the convenience composition for the common icon-only compact and icon-plus-label non-compact button.
+- Use `IconAndLabel` directly when a label must remain visible at every viewport size.
 
 Let components interpret semantic role context instead of passing styling variants through every call site. Keep native button/link semantics and accessible names. Do not apply ARIA menu semantics to arbitrary form controls.
 
