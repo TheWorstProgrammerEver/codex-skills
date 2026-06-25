@@ -76,8 +76,8 @@ Use `lib/ui` primitives as the design-system seed:
 - `AppFrame` for authenticated header/sidebar/main layout.
 - `AppDialog` for modal forms with stable header/content/footer slots.
 - `AuthPanel` for Supabase-backed auth flows.
-- `Button`, `ActionLink`, `ComponentRoleContext`, `ResponsiveButton`, and responsive content primitives for action hierarchy.
-- `Section`, `List`, `HeaderWithActions`, `LoaderContainer`, `AsynchronousSubmitButton` for common app surfaces.
+- `Button`, `ActionLink`, `ComponentRoleContext`, `ActionGroup`, `ResponsiveButton`, `ResponsiveActionLink`, and responsive content primitives for action hierarchy.
+- `Section`, `List`, `HeaderWithActions`, `FormGrid`, `LoaderContainer`, `AsynchronousSubmitButton` for common app surfaces.
 
 Use Lucide icons for familiar actions. Arrange headings at the leading edge and concise actions at the trailing edge. Usually show one primary action per action area; leave supporting actions secondary or tertiary and use the destructive role for irreversible actions.
 
@@ -86,7 +86,12 @@ Keep responsive visibility separate from content layout:
 - `ResponsiveContent` chooses arbitrary compact and non-compact content without knowing what either contains.
 - `IconAndLabel` and `IconOnly` own icon, label, and accessible-name presentation.
 - `ResponsiveButton` is the convenience composition for the common icon-only compact and icon-plus-label non-compact button.
+- `ResponsiveActionLink` applies the same composition to app links.
 - Use `IconAndLabel` directly when a label must remain visible at every viewport size.
+
+Use `ActionGroup` for content-sized, trailing-aligned action collections in headers and list rows. Let a parent component decide whether the whole group moves below its content at a narrower container size.
+
+Use `FormGrid` for standard labelled form controls. Prefer its intrinsic auto-fit layout over duplicated viewport breakpoints, and opt into `singleColumn` when the form includes full-width status or submit content.
 
 Let components interpret semantic role context instead of passing styling variants through every call site. Keep native button/link semantics and accessible names. Do not apply ARIA menu semantics to arbitrary form controls.
 
@@ -109,3 +114,5 @@ If a store grows, split actions/update helpers before it becomes a god class. Ke
 Use SCSS modules. Put design-system foundation styles in `lib/ui/styles/foundation.scss`; import them from app global styles.
 
 Support system light/dark mode naturally with `color-scheme` and semantic CSS variables. Use stable dimensions for boards, lists, grids, toolbars, and tiles so state changes do not shift layout unexpectedly.
+
+Use shared breakpoint and control-size tokens for design-system behavior. Prefer container queries for component-specific layout changes that depend on available component width rather than viewport width.

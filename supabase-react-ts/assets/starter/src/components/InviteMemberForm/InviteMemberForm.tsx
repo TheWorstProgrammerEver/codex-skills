@@ -2,6 +2,7 @@ import { type FormEvent, useState } from 'react'
 import type { LoaderState } from '../../../lib/hooks/useLoader'
 import { AsynchronousSubmitButton } from '../../../lib/ui/AsynchronousSubmitButton/AsynchronousSubmitButton'
 import { ComponentRoleContext } from '../../../lib/ui/ComponentRoleContext/ComponentRoleContext'
+import { FormGrid } from '../../../lib/ui/FormGrid/FormGrid'
 import styles from './InviteMemberForm.module.scss'
 
 type InviteMemberFormProps = {
@@ -18,7 +19,7 @@ export const InviteMemberForm = ({ loader, onSubmit }: InviteMemberFormProps) =>
   }
 
   return (
-    <form className={styles.form} onSubmit={submit}>
+    <FormGrid singleColumn onSubmit={submit}>
       <label>
         Email
         <input
@@ -36,6 +37,6 @@ export const InviteMemberForm = ({ loader, onSubmit }: InviteMemberFormProps) =>
       <ComponentRoleContext role="primary">
         <AsynchronousSubmitButton loader={loader}>Send invite</AsynchronousSubmitButton>
       </ComponentRoleContext>
-    </form>
+    </FormGrid>
   )
 }

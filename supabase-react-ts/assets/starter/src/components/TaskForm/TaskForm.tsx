@@ -3,6 +3,7 @@ import type { TaskInput } from '../../../common/appTypes'
 import type { LoaderState } from '../../../lib/hooks/useLoader'
 import { AsynchronousSubmitButton } from '../../../lib/ui/AsynchronousSubmitButton/AsynchronousSubmitButton'
 import { ComponentRoleContext } from '../../../lib/ui/ComponentRoleContext/ComponentRoleContext'
+import { FormGrid } from '../../../lib/ui/FormGrid/FormGrid'
 import styles from './TaskForm.module.scss'
 
 type TaskFormProps = {
@@ -22,7 +23,7 @@ export const TaskForm = ({ loader, onSubmit }: TaskFormProps) => {
   }
 
   return (
-    <form className={styles.form} onSubmit={submit}>
+    <FormGrid singleColumn onSubmit={submit}>
       <label>
         Title
         <input required value={title} onChange={(event) => setTitle(event.target.value)} />
@@ -38,6 +39,6 @@ export const TaskForm = ({ loader, onSubmit }: TaskFormProps) => {
       <ComponentRoleContext role="primary">
         <AsynchronousSubmitButton loader={loader}>Add task</AsynchronousSubmitButton>
       </ComponentRoleContext>
-    </form>
+    </FormGrid>
   )
 }

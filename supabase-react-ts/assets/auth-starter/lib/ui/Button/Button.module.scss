@@ -3,10 +3,10 @@
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  min-height: 2.25rem;
+  min-height: var(--control-min-height);
   border: 1px solid transparent;
-  border-radius: 7px;
-  padding: 0.4rem 0.7rem;
+  border-radius: var(--control-border-radius);
+  padding: var(--control-padding-block) var(--control-padding-inline);
   cursor: pointer;
   font-weight: 750;
   line-height: 1.1;
@@ -18,8 +18,8 @@
 
   > svg {
     flex: 0 0 auto;
-    width: 1.05rem;
-    height: 1.05rem;
+    width: var(--control-icon-size);
+    height: var(--control-icon-size);
     stroke-width: 2.2;
   }
 }

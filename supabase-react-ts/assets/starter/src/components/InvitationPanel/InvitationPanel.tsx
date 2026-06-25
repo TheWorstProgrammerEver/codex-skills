@@ -20,6 +20,7 @@ export const InvitationPanel = ({ invitations, onAccept, onReject }: InvitationP
       {invitations.map((invitation) => (
         <ListItem
           key={invitation.id}
+          actionsLabel={`${invitation.workspaceName} invitation actions`}
           details={(
             <span>
               <strong>{invitation.workspaceName}</strong>

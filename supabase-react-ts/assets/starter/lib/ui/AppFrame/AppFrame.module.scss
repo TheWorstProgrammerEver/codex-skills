@@ -1,3 +1,5 @@
+@use "../styles/breakpoints";
+
 .frame {
   display: grid;
   grid-template:
@@ -107,7 +109,7 @@
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: breakpoints.$compact) {
   .frame,
   .navigationClosed,
   .navigationOpen {

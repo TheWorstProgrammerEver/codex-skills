@@ -1,3 +1,5 @@
+@use "../styles/breakpoints";
+
 .header {
   display: flex;
   align-items: center;
@@ -10,15 +12,11 @@
 }
 
 .actions {
-  display: flex;
   flex: 0 0 auto;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.65rem;
+  --action-group-gap: 0.65rem;
 }
 
-@media (max-width: 760px) {
+@media (max-width: breakpoints.$compact) {
   .header {
     gap: 0.65rem;
   }

@@ -1,8 +1,10 @@
+@use "../styles/breakpoints";
+
 .compact {
   display: none;
 }
 
-@media (max-width: 760px) {
+@media (max-width: breakpoints.$compact) {
   .compact {
     display: inline;
   }

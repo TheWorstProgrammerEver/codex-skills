@@ -2,6 +2,7 @@ import { type FormEvent, useState } from 'react'
 import type { LoaderState } from '../../../lib/hooks/useLoader'
 import { AsynchronousSubmitButton } from '../../../lib/ui/AsynchronousSubmitButton/AsynchronousSubmitButton'
 import { ComponentRoleContext } from '../../../lib/ui/ComponentRoleContext/ComponentRoleContext'
+import { FormGrid } from '../../../lib/ui/FormGrid/FormGrid'
 import styles from './WorkspaceForm.module.scss'
 
 type WorkspaceFormProps = {
@@ -26,7 +27,7 @@ export const WorkspaceForm = ({ loader, onSubmit }: WorkspaceFormProps) => {
   }
 
   return (
-    <form className={styles.form} onSubmit={submit}>
+    <FormGrid singleColumn onSubmit={submit}>
       <label>
         Workspace name
         <input required value={name} onChange={(event) => setName(event.target.value)} />
@@ -48,6 +49,6 @@ export const WorkspaceForm = ({ loader, onSubmit }: WorkspaceFormProps) => {
       <ComponentRoleContext role="primary">
         <AsynchronousSubmitButton loader={loader}>Create workspace</AsynchronousSubmitButton>
       </ComponentRoleContext>
-    </form>
+    </FormGrid>
   )
 }

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useComponentRoleContext } from '../ComponentRoleContext/ComponentRoleContext'
 import styles from './Button.module.scss'
 
-type ActionLinkProps = ComponentProps<typeof Link>
+export type ActionLinkProps = ComponentProps<typeof Link>
 
 const roleClassNames = {
   primary: styles.primary,

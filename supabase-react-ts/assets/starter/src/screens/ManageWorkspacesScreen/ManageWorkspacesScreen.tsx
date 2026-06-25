@@ -1,11 +1,9 @@
 import { ArrowRight, Plus } from 'lucide-react'
 import { AppDialog } from '../../../lib/ui/AppDialog/AppDialog'
-import { ActionLink } from '../../../lib/ui/Button/ActionLink'
 import { ComponentRoleContext } from '../../../lib/ui/ComponentRoleContext/ComponentRoleContext'
 import { HeaderWithActions } from '../../../lib/ui/HeaderWithActions/HeaderWithActions'
 import { List, ListItem } from '../../../lib/ui/List/List'
-import { IconAndLabel, IconOnly } from '../../../lib/ui/ResponsiveContent/IconContent'
-import { ResponsiveContent } from '../../../lib/ui/ResponsiveContent/ResponsiveContent'
+import { ResponsiveActionLink } from '../../../lib/ui/ResponsiveActionLink/ResponsiveActionLink'
 import { ResponsiveButton } from '../../../lib/ui/ResponsiveButton/ResponsiveButton'
 import { Section } from '../../../lib/ui/Section/Section'
 import { InvitationPanel } from '../../components/InvitationPanel/InvitationPanel'
@@ -56,16 +54,13 @@ export const ManageWorkspacesScreen = () => {
                 )}
                 actions={(
                   <ComponentRoleContext role="tertiary">
-                    <ActionLink to={`/workspaces/${workspace.id}`}>
-                      <ResponsiveContent
-                        compact={<IconOnly icon={<ArrowRight />} label={`Open ${workspace.name}`} />}
-                        nonCompact={(
-                          <IconAndLabel icon={<ArrowRight />} label={`Open ${workspace.name}`}>
-                            Open
-                          </IconAndLabel>
-                        )}
-                      />
-                    </ActionLink>
+                    <ResponsiveActionLink
+                      to={`/workspaces/${workspace.id}`}
+                      icon={<ArrowRight />}
+                      label={`Open ${workspace.name}`}
+                    >
+                      Open
+                    </ResponsiveActionLink>
                   </ComponentRoleContext>
                 )}
               />

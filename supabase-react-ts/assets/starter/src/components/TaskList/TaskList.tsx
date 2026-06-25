@@ -22,6 +22,7 @@ export const TaskList = ({ onDelete, onToggle, tasks }: TaskListProps) => {
       {tasks.map((task) => (
         <ListItem
           key={task.id}
+          actionsLabel={`${task.title} actions`}
           details={(
             <span className={styles.details}>
               <strong>{task.title}</strong>

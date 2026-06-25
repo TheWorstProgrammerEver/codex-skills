@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { ActionGroup } from '../ActionGroup/ActionGroup'
 import styles from './List.module.scss'
 
 type ListProps = {
@@ -8,6 +9,7 @@ type ListProps = {
 
 type ListItemProps = {
   actions?: ReactNode
+  actionsLabel?: string
   details: ReactNode
   leading?: ReactNode
 }
@@ -18,7 +20,7 @@ export const List = ({ ariaLabel, children }: ListProps) => (
   </ul>
 )
 
-export const ListItem = ({ actions, details, leading }: ListItemProps) => (
+export const ListItem = ({ actions, actionsLabel, details, leading }: ListItemProps) => (
   <li className={leading ? styles.withLeading : styles.item}>
     {leading && (
       <span className={styles.leading}>
@@ -31,9 +33,9 @@ export const ListItem = ({ actions, details, leading }: ListItemProps) => (
     </span>
 
     {actions && (
-      <span className={styles.actions}>
+      <ActionGroup ariaLabel={actionsLabel} className={styles.actions}>
         {actions}
-      </span>
+      </ActionGroup>
     )}
   </li>
 )

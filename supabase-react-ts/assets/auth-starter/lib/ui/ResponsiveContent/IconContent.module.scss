@@ -13,8 +13,8 @@
   place-items: center;
 
   svg {
-    width: 1.05rem;
-    height: 1.05rem;
+    width: var(--control-icon-size);
+    height: var(--control-icon-size);
     stroke-width: 2.2;
   }
 }
