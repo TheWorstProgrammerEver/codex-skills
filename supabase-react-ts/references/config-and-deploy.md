@@ -24,6 +24,7 @@ Prefer scripts over one-off command sequences.
 - install dependencies if missing
 - ensure Docker Desktop is running on macOS
 - start local Supabase
+- disable Docker auto-restart for this project's Supabase containers
 - serve local Edge Functions
 - start Vite with `--host 0.0.0.0`
 - generate ignored `public/config.local.json`
@@ -33,10 +34,11 @@ Prefer scripts over one-off command sequences.
 
 - stop Vite/dev processes
 - stop local Edge Functions
+- disable Docker auto-restart for this project's Supabase containers
 - stop Supabase
 - print endpoint status
 
-Treat exact `192.168.*` addresses as ephemeral. Scripts should discover them.
+Treat exact `192.168.*` addresses as ephemeral. Scripts should discover them. Local Supabase containers should not auto-resurrect when Docker Desktop starts; target only containers labelled with the current `supabase/config.toml` `project_id`, and do not change global Docker Desktop settings.
 
 ## Supabase Local
 

@@ -66,6 +66,7 @@ npm run get-going
 - install dependencies when needed
 - open/wait for Docker Desktop on macOS
 - start the local Supabase stack
+- disable Docker auto-restart for this project's Supabase containers
 - serve Edge Functions locally
 - start Vite on `0.0.0.0`
 - generate ignored `public/config.local.json`
@@ -76,6 +77,8 @@ Wind down with:
 ```sh
 npm run all-done
 ```
+
+The workflow scripts should derive the Supabase project id from `supabase/config.toml` and set matching containers to Docker `--restart=no`, so one starter cannot quietly relaunch itself every time Docker Desktop opens.
 
 ## Replacing The Worked Example
 

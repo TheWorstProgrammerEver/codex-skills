@@ -1,9 +1,11 @@
 import { spawn } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 
 const appPort = 5173
 const supabasePort = 54321
 const studioPort = 54323
 const mailPort = 54324
+const supabaseConfigPath = 'supabase/config.toml'
 
 const run = (command, args, options = {}) => new Promise((resolve, reject) => {
   const child = spawn(command, args, {
@@ -84,6 +86,17 @@ const killPids = async (label, pids) => {
   await tryRun('kill', pids)
 }
 
+const getSupabaseProjectId = () => {
+  const config = readFileSync(supabaseConfigPath, 'utf8')
+  const match = config.match(/^project_id\s*=\s*"([^"]+)"\s*$/m)
+
+  if (!match) {
+    throw new Error('Could not find project_id in supabase/config.toml')
+  }
+
+  return match[1]
+}
+
 const stopProcessMatches = async (label, pattern) => {
   const result = await tryRun('pgrep', ['-f', pattern], { capture: true })
   const currentPid = String(process.pid)
@@ -95,6 +108,32 @@ const stopProcessMatches = async (label, pattern) => {
     : []
 
   await killPids(label, [...new Set(pids)])
+}
+
+const disableSupabaseContainerRestarts = async () => {
+  const projectId = getSupabaseProjectId()
+  const result = await tryRun('docker', [
+    'ps',
+    '-aq',
+    '--filter',
+    `label=com.supabase.cli.project=${projectId}`
+  ], { capture: true })
+
+  if (!result.ok) {
+    return
+  }
+
+  const containerIds = result.stdout
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+
+  if (containerIds.length === 0) {
+    return
+  }
+
+  console.log('Disabling Docker auto-restart for local Supabase containers...')
+  await tryRun('docker', ['update', '--restart=no', ...containerIds])
 }
 
 const stopSupabase = async () => {
@@ -131,6 +170,7 @@ const printEndpointStatus = async () => {
 const main = async () => {
   await killPids('__APP_DISPLAY_NAME__ dev server', await pidsListeningOnPort(appPort))
   await stopProcessMatches('Supabase Edge Functions', 'supabase functions serve')
+  await disableSupabaseContainerRestarts()
   await stopSupabase()
   await printEndpointStatus()
 

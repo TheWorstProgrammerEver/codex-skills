@@ -7,6 +7,7 @@ const supabasePort = 54321
 const databasePort = 54322
 const studioPort = 54323
 const mailPort = 54324
+const supabaseConfigPath = 'supabase/config.toml'
 const managedProcesses = []
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -126,6 +127,17 @@ const ensureDependencies = async () => {
   await run('npm', ['install'])
 }
 
+const getSupabaseProjectId = () => {
+  const config = readFileSync(supabaseConfigPath, 'utf8')
+  const match = config.match(/^project_id\s*=\s*"([^"]+)"\s*$/m)
+
+  if (!match) {
+    throw new Error('Could not find project_id in supabase/config.toml')
+  }
+
+  return match[1]
+}
+
 const ensureDocker = async () => {
   if (await commandOk('docker', ['info'])) {
     return
@@ -138,6 +150,27 @@ const ensureDocker = async () => {
 
   console.log('Waiting for Docker...')
   await waitFor('Docker', () => commandOk('docker', ['info']), 120000)
+}
+
+const disableSupabaseContainerRestarts = async () => {
+  const projectId = getSupabaseProjectId()
+  const result = await run('docker', [
+    'ps',
+    '-aq',
+    '--filter',
+    `label=com.supabase.cli.project=${projectId}`
+  ], { capture: true })
+  const containerIds = result.stdout
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+
+  if (containerIds.length === 0) {
+    return
+  }
+
+  console.log('Disabling Docker auto-restart for local Supabase containers...')
+  await run('docker', ['update', '--restart=no', ...containerIds])
 }
 
 const startSupabase = async () => {
@@ -287,6 +320,7 @@ const main = async () => {
   writeLocalConfig(lanAddress)
   await ensureDocker()
   await startSupabase()
+  await disableSupabaseContainerRestarts()
   await ensureEdgeFunctions()
   await ensureVite()
   await printEndpoints(lanAddress)
