@@ -1,0 +1,4 @@
+interface:
+  display_name: "Manage Durable Notes"
+  short_description: "Standardize persistent Codex notes"
+  default_prompt: "Use $manage-durable-notes to persist this decision in the standard notes hierarchy."

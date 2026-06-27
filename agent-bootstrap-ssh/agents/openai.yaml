@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bootstrap SSH"
+  short_description: "Set up SSH and tmux access for Codex hosts"
+  default_prompt: "Use $agent-bootstrap-ssh to set up headless SSH access to this Codex host."
