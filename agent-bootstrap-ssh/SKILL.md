@@ -5,6 +5,10 @@ description: Set up headless SSH access for a dedicated Codex-managed Linux host
 
 # Agent Bootstrap SSH
 
+## Testing Status
+
+This skill has been validated with dry-runs and idempotence checks on an already configured Raspberry Pi 5 host. It has not yet been exercised end-to-end on a fresh OS install, so treat the first fresh-host run as a supervised bootstrap and verify SSH access from the workstation before disabling password authentication.
+
 ## Workflow
 
 Use this after `$agent-bootstrap-yolo-permissions` when the host should run headless.

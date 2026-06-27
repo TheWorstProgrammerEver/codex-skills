@@ -5,6 +5,10 @@ description: Configure a dedicated Codex-managed Linux host for high-autonomy lo
 
 # Agent Bootstrap Yolo Permissions
 
+## Testing Status
+
+This skill has been validated with dry-runs and idempotence checks on an already configured Raspberry Pi 5 host. It has not yet been exercised end-to-end on a fresh OS install, so treat the first fresh-host run as a supervised bootstrap and verify each dry-run before applying changes.
+
 ## Workflow
 
 Use this skill only for a host the user explicitly wants to dedicate to Codex-managed work. Do not use it on a shared laptop, production server, or machine with unrelated private data.
