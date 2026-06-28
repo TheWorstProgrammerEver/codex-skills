@@ -6,6 +6,7 @@ import {
   onAuthSessionChange,
   requestOneTimePassword,
   sendMagicLink,
+  signInWithPasskey,
   signInWithPassword,
   signOutOfSupabase,
   signUpWithPassword,
@@ -24,6 +25,7 @@ export type AppAuth = {
   requestOtp: (email: string, name: string) => Promise<void>
   sendMagicLink: (email: string, name: string) => Promise<void>
   signIn: (email: string, password: string) => Promise<void>
+  signInWithPasskey: () => Promise<void>
   signOut: () => Promise<void>
   signUp: (email: string, name: string, password: string) => Promise<void>
   verifyOtp: (email: string, name: string, token: string) => Promise<void>
@@ -122,6 +124,13 @@ export const useAppAuth = (): AppAuth => {
     )
   ), [runAuthAction])
 
+  const signInWithRegisteredPasskey = useCallback(() => (
+    runAuthAction(
+      () => signInWithPasskey(),
+      setCurrentAccount
+    )
+  ), [runAuthAction])
+
   const signUp = useCallback((email: string, name: string, password: string) => (
     runAuthAction(
       () => signUpWithPassword({ email, name, password }),
@@ -176,6 +185,7 @@ export const useAppAuth = (): AppAuth => {
     requestOtp,
     sendMagicLink: sendMagicLinkToEmail,
     signIn,
+    signInWithPasskey: signInWithRegisteredPasskey,
     signOut,
     signUp,
     verifyOtp
@@ -189,6 +199,7 @@ export const useAppAuth = (): AppAuth => {
     requestOtp,
     sendMagicLinkToEmail,
     signIn,
+    signInWithRegisteredPasskey,
     signOut,
     signUp,
     verifyOtp

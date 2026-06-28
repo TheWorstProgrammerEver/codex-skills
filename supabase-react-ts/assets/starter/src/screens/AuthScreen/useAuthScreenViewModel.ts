@@ -12,6 +12,7 @@ export const useAuthScreenViewModel = () => {
     requestOtp,
     sendMagicLink,
     signIn,
+    signInWithPasskey,
     signUp,
     verifyOtp
   } = useAuthContext()
@@ -25,6 +26,7 @@ export const useAuthScreenViewModel = () => {
     requestOtp,
     sendMagicLink,
     signIn,
+    signInWithPasskey,
     signUp,
     signedIn: Boolean(currentAccount),
     supportedTypes: getSupportedAuthenticationTypes(),

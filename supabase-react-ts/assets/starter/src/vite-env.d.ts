@@ -8,6 +8,7 @@ interface Window {
         emailPassword?: boolean
         magicLink?: boolean
         otp?: boolean
+        passkey?: boolean
       }
     }
     buildVersion?: string

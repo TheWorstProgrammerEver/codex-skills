@@ -29,6 +29,25 @@ type OtpCredentials = EmailOnlyCredentials & {
   token: string
 }
 
+export type AccountPasskey = {
+  id: string
+  createdAt: string
+  friendlyName?: string
+  lastUsedAt?: string
+}
+
+const passkeyFromSupabase = (passkey: {
+  id: string
+  created_at: string
+  friendly_name?: string
+  last_used_at?: string
+}): AccountPasskey => ({
+  id: passkey.id,
+  createdAt: passkey.created_at,
+  friendlyName: passkey.friendly_name,
+  lastUsedAt: passkey.last_used_at
+})
+
 const metadataName = (user: User) => {
   const displayName = user.user_metadata?.display_name
 
@@ -121,6 +140,20 @@ export const signInWithPassword = async ({ email, password }: AuthCredentials) =
   return getAccountForUser(data.user)
 }
 
+export const signInWithPasskey = async () => {
+  const { data, error } = await supabase.auth.signInWithPasskey()
+
+  if (error) {
+    throw error
+  }
+
+  if (!data.user) {
+    throw new Error('Supabase did not return a signed-in user.')
+  }
+
+  return getAccountForUser(data.user)
+}
+
 export const signUpWithPassword = async ({ email, name, password }: SignUpCredentials) => {
   const normalizedEmail = normalizeEmail(email)
   const displayName = name.trim() || nameFromEmail(normalizedEmail)
@@ -197,6 +230,55 @@ export const sendMagicLink = async ({ email, name }: EmailOnlyCredentials) => {
       shouldCreateUser: true
     }
   })
+
+  if (error) {
+    throw error
+  }
+}
+
+export const listPasskeys = async () => {
+  const { data, error } = await supabase.auth.passkey.list()
+
+  if (error) {
+    throw error
+  }
+
+  return (data ?? []).map(passkeyFromSupabase)
+}
+
+export const registerPasskey = async () => {
+  const { data, error } = await supabase.auth.registerPasskey()
+
+  if (error) {
+    throw error
+  }
+
+  if (!data) {
+    throw new Error('Supabase did not return the registered passkey.')
+  }
+
+  return passkeyFromSupabase(data)
+}
+
+export const renamePasskey = async (passkeyId: string, friendlyName: string) => {
+  const { data, error } = await supabase.auth.passkey.update({
+    friendlyName: friendlyName.trim(),
+    passkeyId
+  })
+
+  if (error) {
+    throw error
+  }
+
+  if (!data) {
+    throw new Error('Supabase did not return the updated passkey.')
+  }
+
+  return passkeyFromSupabase(data)
+}
+
+export const deletePasskey = async (passkeyId: string) => {
+  const { error } = await supabase.auth.passkey.delete({ passkeyId })
 
   if (error) {
     throw error

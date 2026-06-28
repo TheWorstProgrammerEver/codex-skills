@@ -38,6 +38,7 @@ export const AuthScreen = () => {
         onMagicLink={viewModel.sendMagicLink}
         onOtpRequest={viewModel.requestOtp}
         onOtpVerify={viewModel.verifyOtp}
+        onPasskeySignIn={viewModel.signInWithPasskey}
         onSignIn={viewModel.signIn}
         onStatusClear={viewModel.clearAuthStatus}
         supportedTypes={viewModel.supportedTypes}

@@ -14,7 +14,8 @@ describe('auth config helpers', () => {
     expect(getSupportedAuthenticationTypes()).toEqual({
       emailPassword: true,
       magicLink: false,
-      otp: false
+      otp: false,
+      passkey: false
     })
   })
 
@@ -25,7 +26,8 @@ describe('auth config helpers', () => {
           supportedTypes: {
             emailPassword: false,
             magicLink: true,
-            otp: true
+            otp: true,
+            passkey: true
           }
         }
       }
@@ -33,7 +35,7 @@ describe('auth config helpers', () => {
 
     const supportedTypes = getSupportedAuthenticationTypes()
 
-    expect(getEnabledAuthenticationTypes(supportedTypes)).toEqual(['otp', 'magicLink'])
-    expect(getDefaultAuthenticationType(supportedTypes)).toBe('otp')
+    expect(getEnabledAuthenticationTypes(supportedTypes)).toEqual(['passkey', 'otp', 'magicLink'])
+    expect(getDefaultAuthenticationType(supportedTypes)).toBe('passkey')
   })
 })

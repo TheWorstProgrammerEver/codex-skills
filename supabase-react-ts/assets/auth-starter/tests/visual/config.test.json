@@ -5,6 +5,7 @@
   "auth": {
     "supportedTypes": {
       "emailPassword": true,
+      "passkey": true,
       "otp": true,
       "magicLink": true
     }

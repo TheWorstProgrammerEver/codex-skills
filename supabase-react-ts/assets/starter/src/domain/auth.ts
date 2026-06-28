@@ -14,7 +14,8 @@ export {
 const defaultSupportedAuthenticationTypes: SupportedAuthenticationTypes = {
   emailPassword: true,
   magicLink: false,
-  otp: false
+  otp: false,
+  passkey: false
 }
 
 export const getSupportedAuthenticationTypes = (): SupportedAuthenticationTypes => {

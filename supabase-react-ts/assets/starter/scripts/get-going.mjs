@@ -98,6 +98,7 @@ const writeLocalConfig = (lanAddress) => {
       .replaceAll('"#{BUILD_VERSION}#"', '"dev"')
       .replaceAll('"#{ENVIRONMENT}#"', '"local"')
       .replaceAll('#{AUTH_EMAIL_PASSWORD_ENABLED}#', 'true')
+      .replaceAll('#{AUTH_PASSKEY_ENABLED}#', 'true')
       .replaceAll('#{AUTH_OTP_ENABLED}#', 'true')
       .replaceAll('#{AUTH_MAGIC_LINK_ENABLED}#', 'true')
       .replaceAll('"#{SUPABASE_URL}#"', '"http://127.0.0.1:54321"')

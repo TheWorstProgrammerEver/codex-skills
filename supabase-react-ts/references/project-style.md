@@ -75,7 +75,7 @@ Use `lib/ui` primitives as the design-system seed:
 
 - `AppFrame` for authenticated header/sidebar/main layout.
 - `AppDialog` for modal forms with stable header/content/footer slots.
-- `AuthPanel` for Supabase-backed auth flows.
+- `AuthPanel` for Supabase-backed auth flows. Prefer composed Sign In/Create Account forms with passkey as a prominent option when enabled; do not use a radio group as the primary auth-method UX.
 - `Button`, `ActionLink`, `ComponentRoleContext`, `ActionGroup`, `ResponsiveButton`, `ResponsiveActionLink`, and responsive content primitives for action hierarchy.
 - `Section`, `List`, `HeaderWithActions`, `FormGrid`, `LoaderContainer`, `AsynchronousSubmitButton` for common app surfaces.
 

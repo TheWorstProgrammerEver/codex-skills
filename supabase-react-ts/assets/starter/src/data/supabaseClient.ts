@@ -19,6 +19,9 @@ export const supabase = createClient(url, publishableKey, {
   auth: {
     autoRefreshToken: true,
     detectSessionInUrl: true,
+    experimental: {
+      passkey: true
+    },
     persistSession: true
   }
 })

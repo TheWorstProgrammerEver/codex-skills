@@ -79,6 +79,7 @@ Keep app config distinct from Supabase as an implementation detail:
   "auth": {
     "supportedTypes": {
       "emailPassword": #{AUTH_EMAIL_PASSWORD_ENABLED}#,
+      "passkey": #{AUTH_PASSKEY_ENABLED}#,
       "otp": #{AUTH_OTP_ENABLED}#,
       "magicLink": #{AUTH_MAGIC_LINK_ENABLED}#
     }
