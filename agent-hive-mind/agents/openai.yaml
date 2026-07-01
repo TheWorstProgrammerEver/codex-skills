@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent Hive Mind"
+  short_description: "Capture reusable agent learnings"
+  default_prompt: "Use $agent-hive-mind after meaningful work to decide whether a collective-learning Linear issue is needed."
