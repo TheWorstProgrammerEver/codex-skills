@@ -1,4 +1,0 @@
-interface:
-  display_name: "Bootstrap Yolo Permissions"
-  short_description: "Configure dedicated Codex host permissions"
-  default_prompt: "Use $agent-bootstrap-yolo-permissions to configure this dedicated host for full Codex autonomy."
