@@ -1,0 +1,4 @@
+interface:
+  display_name: "Coding Style"
+  short_description: "Apply Ryan's coding, testing, stack, and review style"
+  default_prompt: "Use $coding-style while implementing, testing, reviewing, or choosing a stack for this code change."
