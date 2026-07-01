@@ -64,4 +64,4 @@ The script creates or updates:
 - `~/AGENTS.md`: future-session guidance to check durable notes.
 - `~/CODEX_TODO.md`: backlog for setup tasks and parked work.
 
-If future setup also includes headless SSH, invoke `$agent-bootstrap-ssh` after this skill.
+Headless SSH provisioning now belongs in `Codex-Agent-Setup` under `ssh/setup-ssh.sh`, before or alongside this one-time host bootstrap.
