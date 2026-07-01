@@ -19,4 +19,7 @@
 - Prefer semantic HTML, native controls, and accessible interaction patterns.
 - Keep presentational formatting separate from domain transformations when a view starts doing both.
 - Use existing design-system primitives and styling conventions before introducing new component patterns.
+- Prefer SCSS modules for custom web styling in React TSX apps unless the repository has already standardized on another scoped styling approach.
+- Avoid introducing CSS frameworks by default.
 - Keep responsive behavior predictable by giving fixed-format UI elements stable dimensions or constraints.
+- Also read `accessibility.md` when changing visible UI, interactive controls, layout, motion, theming, or focus behavior.
