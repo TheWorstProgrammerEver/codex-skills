@@ -11,6 +11,37 @@ Use durable notes for user-approved, cross-session facts: host setup, repo acces
 
 Do not store secrets, private keys, tokens, passwords, recovery codes, or full credential values in notes or generated templates. For credentials, record only where they are stored, what they are for, who owns them, their scope, and how to revoke or rotate them.
 
+## Review Artifacts And Redaction
+
+Generated review artifacts, candidate files, reconciliation ledger fields, and
+diffs produced from local durable notes need a redaction review before they are
+persisted, summarized, copied into Linear, or promoted into shared durable
+sources. This includes local-only artifacts that stay on the host: do not let a
+raw diff preserve sensitive values just because the destination is not shared.
+
+Before recording one of these artifacts, redact or omit:
+
+- private IP addresses, hostnames, device identifiers, serial numbers, and
+  other host-only facts;
+- credential values, private keys, tokens, passwords, recovery codes, and
+  credential hints that would make a secret easier to find or use;
+- private local paths when the exact path is not needed for the review decision;
+- any other local-only fact that is not necessary for the human reconciliation
+  choice.
+
+When a diff or candidate file can be safely redacted, keep only the minimum
+context needed to explain the conflict and use explicit placeholders such as
+`[REDACTED_PRIVATE_HOST]` or `[REDACTED_SECRET]`. When safe redaction is
+ambiguous, write a summary-only artifact instead: name the local file category,
+state the human decision needed, and do not copy raw diff content.
+
+Do not require an agent signature on every stable wiki or durable-note page.
+Use compact provenance only where it helps review or reconciliation, such as
+generated review artifacts, append-only activity ledger entries, and
+machine-readable reconciliation events. Useful fields include `agentId`,
+`runId`, `model`, `reasoningLabel`, `policyVersion`, `sourceIssue`, and a
+timestamp when those values are available and safe to record.
+
 ## Memory Model
 
 Treat durable notes as a practical wiki crossed with an activity ledger:
