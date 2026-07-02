@@ -34,6 +34,11 @@
 - Use a small reusable hydration or interpolation helper when templates need variables.
 - If a separate template file is not practical, isolate large strings in a focused module with named exports rather than embedding them in unrelated logic.
 
+## Portable Production Content
+
+- In production code, prompts, README/operator content, templates, and reusable docs, prefer role-based or configurable names over agent-specific names, personal hostnames, absolute home paths, or other local-only host facts.
+- Test fixtures and examples may use realistic names or paths when they make the scenario clearer, provided they remain non-secret and are not presented as production defaults.
+
 ## Completion Checks
 
 - Re-scan touched files for responsibility creep before finishing.
