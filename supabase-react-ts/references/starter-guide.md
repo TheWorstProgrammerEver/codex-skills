@@ -40,7 +40,7 @@ Use `assets/starter/` when a user asks for the full worked example, a data-backe
 From the target project root, copy the starter contents, then rename app-specific text:
 
 ```sh
-cp -R /Users/ryanhayward/.codex/skills/supabase-react-ts/assets/starter/. .
+cp -R "$HOME/.codex/skills/supabase-react-ts/assets/starter/." .
 npm install
 ```
 
