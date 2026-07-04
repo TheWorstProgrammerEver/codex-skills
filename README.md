@@ -24,6 +24,16 @@ Preview without copying:
 npm run install:skills -- --dry-run
 ```
 
+Installer output redacts host-local target paths by default. Install previews
+and success messages use `<target>/...` labels so unattended maintenance logs
+can identify the skill and backup location without recording absolute home
+paths. For interactive local debugging, pass `--show-paths` to print the exact
+target and backup paths:
+
+```sh
+npm run install:skills -- --dry-run --show-paths
+```
+
 List repo skills:
 
 ```sh
