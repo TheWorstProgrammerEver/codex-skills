@@ -16,6 +16,11 @@ type RuntimeConfig = {
   }
 }
 
+type FunctionRouteStatus = {
+  functionName: string
+  status?: number
+}
+
 let cachedAdminClient: SupabaseClient | undefined
 
 const getStatus = () => {
@@ -89,13 +94,69 @@ export const createSignedInClient = async (email: string, password: string) => {
   return client
 }
 
-export const requireLocalFunctionsReady = async () => {
-  const { url } = getLocalSupabaseConfig()
-  const response = await fetch(`${url}/functions/v1/app-health`, {
+const parseTomlKey = (key: string) => {
+  if (!key.startsWith('"')) {
+    return key
+  }
+
+  try {
+    return JSON.parse(key) as string
+  } catch {
+    return key.slice(1, -1)
+  }
+}
+
+const getEnabledFunctionNames = () => {
+  const config = readFileSync('supabase/config.toml', 'utf8')
+
+  return [...new Set(config.split(/\n(?=\s*\[)/).flatMap((section) => {
+    const sectionMatch = section.match(/^\s*\[functions\.((?:"(?:[^"\\]|\\.)+")|[A-Za-z0-9_-]+)\]\s*$/m)
+
+    if (!sectionMatch || /^\s*enabled\s*=\s*false\s*(?:#.*)?$/m.test(section)) {
+      return []
+    }
+
+    return [parseTomlKey(sectionMatch[1])]
+  }))]
+}
+
+const isFunctionRouteReady = ({ functionName, status }: FunctionRouteStatus) => {
+  if (status === undefined) {
+    return false
+  }
+
+  if (functionName === 'app-health') {
+    return status >= 200 && status < 300
+  }
+
+  return status !== 404 && status < 500
+}
+
+const getFunctionRouteStatus = async (url: string, functionName: string): Promise<FunctionRouteStatus> => {
+  const response = await fetch(`${url}/functions/v1/${encodeURIComponent(functionName)}`, {
     signal: AbortSignal.timeout(3000)
   }).catch(() => undefined)
 
-  if (!response?.ok) {
-    throw new Error('Security tests need local Edge Functions running. Run npm run get-going first.')
+  return { functionName, status: response?.status }
+}
+
+export const requireLocalFunctionsReady = async () => {
+  const { url } = getLocalSupabaseConfig()
+  const statuses = await Promise.all(
+    getEnabledFunctionNames().map((functionName) => getFunctionRouteStatus(url, functionName))
+  )
+  const unreadyFunctions = statuses.filter((status) => !isFunctionRouteReady(status))
+
+  if (unreadyFunctions.length > 0) {
+    const routeStatuses = unreadyFunctions
+      .map(({ functionName, status }) => `${functionName}: ${status === undefined ? 'no response' : `HTTP ${status}`}`)
+      .join(', ')
+
+    throw new Error([
+      'Security tests need configured local Edge Function routes ready. Run npm run get-going first.',
+      'If app-health is ready but another route is HTTP 404, or a business route is HTTP 503 after adding shared imports, restart the local Supabase stack so Edge Runtime reloads this branch.',
+      'If Edge Runtime is healthy but Kong reports name-resolution failures, restart the local Kong container and rerun get-going.',
+      `Unready routes: ${routeStatuses}.`
+    ].join(' '))
   }
 }
