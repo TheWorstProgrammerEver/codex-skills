@@ -11,8 +11,10 @@ It keeps the product surface intentionally small for now: auth, runtime config, 
 
 Prerequisites:
 
-- Node.js and npm
+- Node.js 22.12.0 or newer, with npm
 - Docker Desktop
+
+The committed Vite/Vitest/Supabase toolchain is pinned in `package.json` and `package-lock.json`. Refresh direct dependency versions and the Node engine floor together when deliberately updating the starter toolchain.
 
 From a fresh clone:
 

@@ -1,6 +1,13 @@
 import { execFileSync } from 'node:child_process'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
+const supabaseBin = process.platform === 'win32'
+  ? 'node_modules/.bin/supabase.cmd'
+  : 'node_modules/.bin/supabase'
+const supabaseCommand = process.platform === 'win32'
+  ? { args: ['status', '-o', 'json'], file: supabaseBin }
+  : { args: [supabaseBin, 'status', '-o', 'json'], file: process.execPath }
+
 type SupabaseStatus = {
   API_URL?: string
   SERVICE_ROLE_KEY?: string
@@ -15,7 +22,7 @@ let cachedAdminConfig: AdminConfig | undefined
 let cachedAdminClient: SupabaseClient | undefined
 
 const getLocalSupabaseStatus = (): SupabaseStatus => {
-  const output = execFileSync('npx', ['--no-install', 'supabase', 'status', '-o', 'json'], {
+  const output = execFileSync(supabaseCommand.file, supabaseCommand.args, {
     cwd: process.cwd(),
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'ignore']
