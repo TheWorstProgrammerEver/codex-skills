@@ -26,10 +26,13 @@ node /path/to/supabase-react-ts/scripts/scaffold.mjs \
 
 After scaffolding:
 
-1. Run `npm install`.
-2. Run `rg -n "Team Tasks|team tasks|teamTasks|team_tasks|team-tasks|__APP_" . --glob '!node_modules/**' --glob '!dist/**'`.
-3. Fix every unintended match. Do not leave starter/example names in app titles, package metadata, tests, scripts, fallback UI strings, Supabase config, or README files.
-4. Run `npm run lint`, `npm test`, and `npm run build`.
+1. Confirm Node.js is at least the auth starter's `package.json` `engines.node` floor.
+2. Run `npm install`.
+3. Run `rg -n "Team Tasks|team tasks|teamTasks|team_tasks|team-tasks|__APP_" . --glob '!node_modules/**' --glob '!dist/**'`.
+4. Fix every unintended match. Do not leave starter/example names in app titles, package metadata, tests, scripts, fallback UI strings, Supabase config, or README files.
+5. Run `npm run lint`, `npm test`, and `npm run build`.
+
+The auth starter commits exact direct dependency versions and a lockfile. When refreshing the starter toolchain, update the direct dependency pins, lockfile, and Node engine floor in the same change, then validate a fresh scaffold under that Node version.
 
 The auth-only starter intentionally has no product tables, no app-data Edge Function, and no RLS policies yet. It uses Supabase Auth metadata for the displayed account rather than requiring a `profiles` table. Add migrations, RLS, and security tests with the first persisted product feature.
 
