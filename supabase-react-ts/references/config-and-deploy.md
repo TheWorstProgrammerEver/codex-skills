@@ -26,6 +26,7 @@ Prefer scripts over one-off command sequences.
 - start local Supabase
 - disable Docker auto-restart for this project's Supabase containers
 - serve local Edge Functions
+- validate every enabled `[functions.*]` route from `supabase/config.toml`, not only the health function
 - start Vite with `--host 0.0.0.0`
 - generate ignored `public/config.local.json`
 - print app, Supabase API, Studio, Mailpit, and health endpoints for localhost and LAN
@@ -52,6 +53,20 @@ Common local endpoints:
 - Mailpit: `http://127.0.0.1:54324`
 
 Local function health endpoints should be cheap and unauthenticated.
+
+Treat `app-health` as a runtime smoke check, not proof that the current branch's
+business functions are mounted. A stale local Edge Runtime can keep serving an
+old health function while a newly added function route returns `404`, or while an
+existing function returns `503`/boot errors after importing a new shared file
+outside `supabase/functions`. Before security tests, route checks should include
+every enabled business function needed by the branch and should fail on missing
+routes or boot failures. Restart the local Supabase stack when Edge Runtime is
+serving stale function code or stale mounts.
+
+If Edge Runtime itself is healthy but Kong reports name-resolution failures for
+Edge Runtime during startup, restarting just the local Kong container for the
+Supabase project can refresh DNS. That is an infrastructure recovery step, not
+an app code change.
 
 ## Netlify Build
 

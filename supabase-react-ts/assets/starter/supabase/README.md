@@ -42,6 +42,14 @@ The `app-health` function is public locally and should respond at:
 http://127.0.0.1:54321/functions/v1/app-health
 ```
 
+Use it as a cheap runtime smoke check only. `npm run get-going` also validates
+every enabled `[functions.*]` route in `supabase/config.toml` so a stale Edge
+Runtime cannot hide a missing new business function behind a passing health
+check. If a business route is `404`, or `503` after adding shared imports,
+restart the local Supabase stack before running security tests. If Kong reports
+name-resolution failures while Edge Runtime is healthy, restarting the local
+Kong container for this Supabase project may be enough.
+
 Stop the stack:
 
 ```sh

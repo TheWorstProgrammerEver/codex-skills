@@ -68,9 +68,19 @@ npm run get-going
 - start the local Supabase stack
 - disable Docker auto-restart for this project's Supabase containers
 - serve Edge Functions locally
+- validate every enabled `[functions.*]` route from `supabase/config.toml`
 - start Vite on `0.0.0.0`
 - generate ignored `public/config.local.json`
 - print localhost and LAN endpoints
+
+Do not rely on `app-health` alone before running security tests. It can still
+return OK while a newly configured business function returns `404`, or while an
+existing business function returns `503` after importing a new shared file that
+the already-running Edge Runtime did not mount. In that case, wind down with
+`npm run all-done`, then run `npm run get-going` so the local stack starts from
+the current branch. If Edge Runtime is healthy but Kong reports name-resolution
+failures, restarting only the local Kong container for the Supabase project may
+be enough; no app code change is implied.
 
 Wind down with:
 
@@ -112,3 +122,6 @@ npm run all-done
 ```
 
 Run only the relevant subset for small edits, but always run security tests after RLS, migration, Edge Function, or direct table access changes.
+After adding or renaming a function route, or after making an existing function
+import a new shared file, rerun `get-going` and confirm its configured function
+route checks pass before treating security-test failures as app logic failures.

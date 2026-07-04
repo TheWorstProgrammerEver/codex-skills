@@ -123,6 +123,10 @@ Cover at least:
 - Cleanup removes test users and rows using the local service-role key.
 
 When adding a new table or function request, update both the fixture and security assertions.
+Before interpreting function authorization failures, confirm `npm run get-going`
+has validated each enabled function route from `supabase/config.toml`. A passing
+health function alone can miss stale Edge Runtime state after adding a new
+function or importing new shared function code.
 
 ## Local Only
 

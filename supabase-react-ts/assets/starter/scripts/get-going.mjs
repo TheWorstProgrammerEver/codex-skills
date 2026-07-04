@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { networkInterfaces, platform } from 'node:os'
+import { pathToFileURL } from 'node:url'
 
 const appPort = 5173
 const supabasePort = 54321
@@ -139,6 +140,94 @@ const getSupabaseProjectId = () => {
   return match[1]
 }
 
+const parseTomlKey = (key) => {
+  if (!key.startsWith('"')) {
+    return key
+  }
+
+  try {
+    return JSON.parse(key)
+  } catch {
+    return key.slice(1, -1)
+  }
+}
+
+export const getEnabledFunctionNames = () => {
+  const config = readFileSync(supabaseConfigPath, 'utf8')
+
+  return [...new Set(config.split(/\n(?=\s*\[)/).flatMap((section) => {
+    const sectionMatch = section.match(/^\s*\[functions\.((?:"(?:[^"\\]|\\.)+")|[A-Za-z0-9_-]+)\]\s*$/m)
+
+    if (!sectionMatch || /^\s*enabled\s*=\s*false\s*(?:#.*)?$/m.test(section)) {
+      return []
+    }
+
+    return [parseTomlKey(sectionMatch[1])]
+  }))]
+}
+
+const functionRouteUrl = (host, functionName) => (
+  `http://${host}:${supabasePort}/functions/v1/${encodeURIComponent(functionName)}`
+)
+
+const requestFunctionRouteStatus = async (url) => {
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(2500) })
+
+    return { status: response.status }
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) }
+  }
+}
+
+export const isFunctionRouteReady = (functionName, result) => {
+  if (result.status === undefined) {
+    return false
+  }
+
+  if (functionName === 'app-health') {
+    return result.status >= 200 && result.status < 300
+  }
+
+  return result.status !== 404 && result.status < 500
+}
+
+const getFunctionRouteStatuses = async (functionNames, host = '127.0.0.1') => Promise.all(
+  functionNames.map(async (functionName) => {
+    const url = functionRouteUrl(host, functionName)
+
+    return {
+      functionName,
+      result: await requestFunctionRouteStatus(url),
+      url
+    }
+  })
+)
+
+export const areFunctionRoutesReady = (statuses) => (
+  statuses.every(({ functionName, result }) => isFunctionRouteReady(functionName, result))
+)
+
+const shouldStartEdgeFunctions = (statuses) => (
+  statuses.every(({ result }) => result.status === undefined || result.status === 404)
+)
+
+const formatFunctionRouteStatus = ({ functionName, result, url }) => {
+  const detail = result.status === undefined
+    ? result.error ?? 'no response'
+    : `HTTP ${result.status}`
+
+  return `${functionName} (${url}): ${detail}`
+}
+
+const edgeFunctionFailureMessage = (error, statuses) => [
+  error.message,
+  'Configured Edge Function routes:',
+  ...statuses.map((status) => `- ${formatFunctionRouteStatus(status)}`),
+  'If app-health is ready but a business route is HTTP 404, or a business route is HTTP 503 after adding shared imports, stop and restart the local Supabase stack so Edge Runtime reloads this branch.',
+  'If Edge Runtime is healthy but Kong reports name-resolution failures, restart the local Kong container for this Supabase project and rerun get-going.'
+].join('\n')
+
 const ensureDocker = async () => {
   if (await commandOk('docker', ['info'])) {
     return
@@ -211,14 +300,29 @@ const startManagedProcess = (label, command, args) => {
 }
 
 const ensureEdgeFunctions = async () => {
-  const healthUrl = `http://127.0.0.1:${supabasePort}/functions/v1/app-health`
+  const functionNames = getEnabledFunctionNames()
 
-  if (await httpOk(healthUrl)) {
+  if (functionNames.length === 0) {
     return
   }
 
-  startManagedProcess('Supabase Edge Functions', 'npm', ['run', 'supabase:functions:serve'])
-  await waitFor('Supabase Edge Functions', () => httpOk(healthUrl))
+  const initialStatuses = await getFunctionRouteStatuses(functionNames)
+
+  if (areFunctionRoutesReady(initialStatuses)) {
+    return
+  }
+
+  if (shouldStartEdgeFunctions(initialStatuses)) {
+    startManagedProcess('Supabase Edge Functions', 'npm', ['run', 'supabase:functions:serve'])
+  }
+
+  try {
+    await waitFor(`Supabase Edge Functions (${functionNames.join(', ')})`, async () => (
+      areFunctionRoutesReady(await getFunctionRouteStatuses(functionNames))
+    ))
+  } catch (error) {
+    throw new Error(edgeFunctionFailureMessage(error, await getFunctionRouteStatuses(functionNames)))
+  }
 }
 
 const ensureVite = async () => {
@@ -239,9 +343,21 @@ const checkEndpoint = async (label, url) => {
   console.log(`${icon} ${label.padEnd(22)} ${url}`)
 }
 
+const checkFunctionEndpoint = async (label, functionName, url) => {
+  const result = await requestFunctionRouteStatus(url)
+  const ok = isFunctionRouteReady(functionName, result)
+  const icon = ok ? 'OK ' : 'ERR'
+  const detail = result.status === undefined
+    ? result.error ?? 'no response'
+    : `HTTP ${result.status}`
+
+  console.log(`${icon} ${label.padEnd(22)} ${url} (${detail})`)
+}
+
 const printEndpoints = async (lanAddress) => {
   const local = '127.0.0.1'
   const lan = lanAddress
+  const functionNames = getEnabledFunctionNames()
 
   console.log('\nTeam Tasks dev endpoints')
   console.log('--------------------------------')
@@ -283,9 +399,11 @@ const printEndpoints = async (lanAddress) => {
   if (lan) {
     await checkEndpoint('Functions LAN', `http://${lan}:${supabasePort}/functions/v1`)
   }
-  await checkEndpoint('Health local', `http://${local}:${supabasePort}/functions/v1/app-health`)
-  if (lan) {
-    await checkEndpoint('Health LAN', `http://${lan}:${supabasePort}/functions/v1/app-health`)
+  for (const functionName of functionNames) {
+    await checkFunctionEndpoint(`Function ${functionName} local`, functionName, functionRouteUrl(local, functionName))
+    if (lan) {
+      await checkFunctionEndpoint(`Function ${functionName} LAN`, functionName, functionRouteUrl(lan, functionName))
+    }
   }
 
   console.log('\nDatabase')
@@ -332,8 +450,10 @@ const main = async () => {
   }
 }
 
-main().catch((error) => {
-  stopManagedProcesses()
-  console.error(error.message)
-  process.exit(1)
-})
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    stopManagedProcesses()
+    console.error(error.message)
+    process.exit(1)
+  })
+}
