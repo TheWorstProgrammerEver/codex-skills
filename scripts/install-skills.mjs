@@ -8,13 +8,14 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const reservedTopLevelNames = new Set(['.git', 'node_modules', 'scripts'])
 
 const usage = `Usage:
-  node scripts/install-skills.mjs [--dry-run] [--list] [--target <path>] [skill-name ...]
+  node scripts/install-skills.mjs [--dry-run] [--list] [--show-paths] [--target <path>] [skill-name ...]
 
 Examples:
   node scripts/install-skills.mjs
   node scripts/install-skills.mjs supabase-react-ts
   node scripts/install-skills.mjs --dry-run
-  node scripts/install-skills.mjs --target ~/.codex/skills supabase-react-ts`
+  node scripts/install-skills.mjs --target ~/.codex/skills supabase-react-ts
+  node scripts/install-skills.mjs --dry-run --show-paths`
 
 const expandHome = (path) => (
   path === '~' || path.startsWith('~/')
@@ -26,6 +27,7 @@ const parseArgs = (args) => {
   const parsed = {
     dryRun: false,
     list: false,
+    showPaths: false,
     skillNames: [],
     target: process.env.CODEX_HOME
       ? join(process.env.CODEX_HOME, 'skills')
@@ -42,6 +44,11 @@ const parseArgs = (args) => {
 
     if (arg === '--dry-run') {
       parsed.dryRun = true
+      continue
+    }
+
+    if (arg === '--show-paths') {
+      parsed.showPaths = true
       continue
     }
 
@@ -135,6 +142,12 @@ const requireInsideTarget = (targetRoot, path) => {
   }
 }
 
+const formatTargetPath = (targetRoot, path, showPaths) => (
+  showPaths
+    ? path
+    : `<target>${resolve(path).slice(resolve(targetRoot).length)}`
+)
+
 const backupExistingSkill = async (targetRoot, skillName, dryRun) => {
   const targetPath = join(targetRoot, skillName)
 
@@ -158,14 +171,18 @@ const backupExistingSkill = async (targetRoot, skillName, dryRun) => {
   return backupPath
 }
 
-const installSkill = async (targetRoot, skill, dryRun) => {
+const installSkill = async (targetRoot, skill, dryRun, showPaths) => {
   const targetPath = join(targetRoot, skill.name)
   const existingBackup = await backupExistingSkill(targetRoot, skill.name, dryRun)
+  const displayTargetPath = formatTargetPath(targetRoot, targetPath, showPaths)
+  const displayBackupPath = existingBackup
+    ? formatTargetPath(targetRoot, existingBackup, showPaths)
+    : undefined
 
   if (dryRun) {
     console.log(existingBackup
-      ? `DRY ${skill.name}: would back up ${targetPath} to ${existingBackup}, then install`
-      : `DRY ${skill.name}: would install to ${targetPath}`)
+      ? `DRY ${skill.name}: would back up existing ${displayTargetPath} to ${displayBackupPath}, then install`
+      : `DRY ${skill.name}: would install to ${displayTargetPath}`)
     return
   }
 
@@ -177,7 +194,7 @@ const installSkill = async (targetRoot, skill, dryRun) => {
   })
 
   console.log(existingBackup
-    ? `OK  ${skill.name}: installed; previous copy backed up to ${existingBackup}`
+    ? `OK  ${skill.name}: installed; previous copy backed up to ${displayBackupPath}`
     : `OK  ${skill.name}: installed`)
 }
 
@@ -217,7 +234,7 @@ const main = async () => {
       throw new Error(`Unexpected skill path for ${skill.name}.`)
     }
 
-    await installSkill(args.target, skill, args.dryRun)
+    await installSkill(args.target, skill, args.dryRun, args.showPaths)
   }
 }
 
