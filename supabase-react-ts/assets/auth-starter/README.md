@@ -37,6 +37,8 @@ After adding the first product function, do not treat `app-health` alone as proo
 
 `public/config.json` is the committed deployment template and should be substituted by CI/CD. `npm run get-going` generates ignored `public/config.local.json` for the current machine/LAN. Visual tests keep their config under `tests/visual/config.test.json` and route it as `/config.local.json`.
 
+Deployment and hosted environment setup lives in `README.ENV.md`. Keep that file current whenever runtime config, Netlify settings, Supabase Auth providers, Edge Functions, migrations, or hosted dashboard settings change. It should contain placeholders only, never real secrets or machine-specific values.
+
 ## Security Integration Tests
 
 The security integration command is wired in but currently has no app-table tests because __APP_DISPLAY_NAME__ has no persisted product data yet:

@@ -1,5 +1,5 @@
 import { createDispatcher, type IRequest } from '../../../lib/dispatch/dispatch.ts'
-import { withSupabase } from 'npm:@supabase/server@^1'
+import { withSupabase } from 'npm:@supabase/server@1.3.0'
 import { HttpError, errorMessage } from './helpers.ts'
 import { createAppRequestHandlers } from './handlers/index.ts'
 

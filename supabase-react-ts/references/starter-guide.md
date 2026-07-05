@@ -28,9 +28,10 @@ After scaffolding:
 
 1. Confirm Node.js is at least the auth starter's `package.json` `engines.node` floor.
 2. Run `npm install`.
-3. Run `rg -n "Team Tasks|team tasks|teamTasks|team_tasks|team-tasks|__APP_" . --glob '!node_modules/**' --glob '!dist/**'`.
-4. Fix every unintended match. Do not leave starter/example names in app titles, package metadata, tests, scripts, fallback UI strings, Supabase config, or README files.
-5. Run `npm run lint`, `npm test`, and `npm run build`.
+3. Confirm `README.ENV.md` describes the app's actual runtime config, Netlify build settings, hosted Supabase Auth settings, Edge Functions, migration expectations, and production smoke checks using placeholders only.
+4. Run `rg -n "Team Tasks|team tasks|teamTasks|team_tasks|team-tasks|__APP_" . --glob '!node_modules/**' --glob '!dist/**'`.
+5. Fix every unintended match. Do not leave starter/example names in app titles, package metadata, tests, scripts, fallback UI strings, Supabase config, or README files.
+6. Run `npm run lint`, `npm test`, and `npm run build`.
 
 The auth starter commits exact direct dependency versions and a lockfile. When refreshing the starter toolchain, update the direct dependency pins, lockfile, and Node engine floor in the same change, then validate a fresh scaffold under that Node version.
 
@@ -51,10 +52,11 @@ After copying the Team Tasks example:
 
 1. Update `package.json` name and scripts if the app label changed.
 2. Update `public/config.json` app name and deployment substitution tokens as needed.
-3. Update `supabase/config.toml` `project_id` and function names only if the product needs different names.
-4. Replace Team Tasks domain examples with the real domain incrementally, or keep them only if the user intentionally wants the worked example.
-5. Run the same placeholder/name sweep used for auth-only scaffolds.
-6. Run `npm run lint`, `npm test`, and `npm run build`.
+3. Confirm `README.ENV.md` reflects the actual Netlify build command, publish directory, runtime variables, Supabase Auth dashboard settings, Edge Function names/JWT settings, migration workflow, and production smoke checks.
+4. Update `supabase/config.toml` `project_id` and function names only if the product needs different names.
+5. Replace Team Tasks domain examples with the real domain incrementally, or keep them only if the user intentionally wants the worked example.
+6. Run the same placeholder/name sweep used for auth-only scaffolds.
+7. Run `npm run lint`, `npm test`, and `npm run build`.
 
 ## First Local Run
 
