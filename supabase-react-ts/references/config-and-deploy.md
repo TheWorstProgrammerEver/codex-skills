@@ -92,6 +92,7 @@ Do not hard-code a duplicate list of boolean config keys in the build script. Le
 - any deploy-time substitution, including `#{CONFIG_FILE}#` redirecting the browser loader to `/config.json`
 - redirect/proxy files such as `public/_redirects`
 - the expected GitHub/Netlify redeploy behavior after config, redirects, or client code changes
+- any explicit public app host required by Edge Functions that generate absolute public URLs, including where it is configured for local development and hosted Edge Runtime
 
 ## Deployment Variables
 
@@ -147,8 +148,10 @@ For Edge Functions:
 - document every configured function name, entrypoint, and `verify_jwt` setting from `supabase/config.toml`
 - document the deploy command or CI step, such as `npm run supabase:functions:deploy -- <function-name>`
 - document whether database migrations require `supabase db push`, a reviewed migration pipeline, or hosted integration redeploys
+- when a function generates absolute public URLs, configure an explicit public app host for Edge Runtime rather than deriving it from `Request.url`, `Host`, or forwarded headers; local Supabase/Kong and proxies may expose the function gateway or lose the original app host/port
+- make missing or invalid public-host config fail safely with a non-success response, and for image endpoints, with a non-image response
 - pin npm imports exactly or manage them through function-specific `deno.json`; avoid floating imports such as `npm:@supabase/supabase-js@2`
 - distinguish repo/build Node versions from the Supabase hosted Edge Runtime; changing `.nvmrc`, `engines.node`, or Netlify `NODE_VERSION` does not change the hosted Deno Edge Runtime
 - for public functions that only need simple PostgREST reads, consider direct `fetch` to Supabase REST APIs with service-role auth instead of importing the full Supabase JS client when cold start size and import-time warnings matter
 
-Production smoke checks in `README.ENV.md` should cover browser config loading, absence of unresolved `#{...}#` tokens, auth callback flow, public route/proxy behavior, Edge Function health, one representative business function call when present, and hosted function logs after invocation. A browser CORS/preflight error is not enough diagnosis by itself: first verify the deployed function exists and responds outside the browser, because missing functions, stale deployments, route mismatches, and import-time function failures can surface as CORS-looking browser errors.
+Production smoke checks in `README.ENV.md` should cover browser config loading, absence of unresolved `#{...}#` tokens, auth callback flow, public route/proxy behavior, Edge Function health, one representative business function call when present, and hosted function logs after invocation. For functions that generate absolute public URLs, include a smoke or integration check that the generated URL starts from the configured canonical public host, not the function request host. A browser CORS/preflight error is not enough diagnosis by itself: first verify the deployed function exists and responds outside the browser, because missing functions, stale deployments, route mismatches, and import-time function failures can surface as CORS-looking browser errors.
