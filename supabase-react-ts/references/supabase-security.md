@@ -83,6 +83,37 @@ using (public.current_user_is_workspace_member(workspace_id));
 
 Write direct-table policies even when the UI only uses Edge Functions.
 
+## Command-Only Column Mutations
+
+When owners may update ordinary columns directly but one sensitive column must
+only change through an authenticated command boundary, use column-level
+privileges in addition to RLS. RLS update policies can check the existing row
+with `using` and the proposed row with `with check`, but they are not a good
+place to compare old and new values for "this column cannot change directly"
+rules.
+
+Replace broad table update grants with explicit column grants that omit the
+protected column:
+
+```sql
+revoke update on public.things from authenticated;
+grant update (display_name, status, updated_at) on public.things to authenticated;
+```
+
+Then expose one narrow command path for the protected write, such as a
+`security definer` SQL or PL/pgSQL helper invoked from the app command handler.
+That helper must set an explicit `search_path`, reject unauthenticated callers,
+recheck ownership or tenant membership using `auth.uid()`, recheck any role or
+entitlement required for the protected field, validate the new value, and update
+only the target owned row. Do not trust caller-supplied owner, tenant, or role
+fields; derive authorization from database state. Revoke helper execution from
+`public` and `anon`, and grant only the narrow execute permission needed by
+`authenticated`.
+
+Keep the normal row RLS policies in place. Column privileges prevent direct
+mutation of the protected field; RLS still decides which rows can be read,
+inserted, updated, or deleted at all.
+
 ## Invitations
 
 Prefer invitations as first-class pending records. Accepted/rejected invitations should usually be consumed/deleted once handled.
@@ -121,6 +152,12 @@ Cover at least:
 - Members can perform allowed positive writes through functions.
 - Members cannot create/update/delete rows outside their tenant via direct table access.
 - Cleanup removes test users and rows using the local service-role key.
+- For command-only protected columns, direct-table tests prove ordinary owner
+  updates still work while protected-column updates fail directly, including for
+  users who are entitled to use the command helper. Function or RPC tests prove
+  the helper allows the entitled owner path, rejects non-entitled or cross-owner
+  calls, rejects invalid values or conflicts, and leaves stored rows unchanged
+  after denial.
 
 When adding a new table or function request, update both the fixture and security assertions.
 For Supabase/PostgREST array inserts in fixtures, keep every row object in the
