@@ -57,3 +57,11 @@ Use these preferences when choosing a new stack, adding dependencies, or evaluat
 - Promote tested builds to production manually.
 - Prefer build-once, deploy-to-many-environments when feasible: the same build artifact should move from test configuration to production configuration after promotion.
 - Decide case by case when platform constraints make build-once deployment costly, such as mobile app store signing or TestFlight binary requirements.
+
+## Environment Setup Documentation
+
+- Any deployable app with runtime configuration, hosted services, deploy-time substitution, or dashboard-managed settings must include a `README.ENV.md` or equivalent environment setup document linked from the main README.
+- Document every required environment variable and hosted platform setting. Include non-env dashboard configuration that affects runtime behavior, such as auth callback URLs, custom domains, webhooks, deployed functions, database migrations, and hosted integration settings.
+- For each variable or setting, document the name, where it is configured, whether it is required, whether it is secret, an example shape only, the code or platform consumer, the common failure symptom, and the validation step or smoke test.
+- Code changes that add, remove, rename, or change the meaning of runtime config or hosted-service wiring should update the environment setup document in the same PR.
+- Never record real secrets, tokens, private keys, recovery codes, private IP addresses, machine-specific identifiers, or full credential values in environment documentation. Use placeholders and example shapes only.
