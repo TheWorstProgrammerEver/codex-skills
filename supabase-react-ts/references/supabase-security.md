@@ -123,6 +123,14 @@ Cover at least:
 - Cleanup removes test users and rows using the local service-role key.
 
 When adding a new table or function request, update both the fixture and security assertions.
+For Supabase/PostgREST array inserts in fixtures, keep every row object in the
+array the same shape when the table has `not null default` columns, especially
+after adding one. If one row omits a defaulted column while another row includes
+it, the client can send the omitted key as `null` instead of letting the
+database default apply, failing fixture setup before the security assertions
+run. Either include the defaulted column consistently for every row in that
+batch, or split the rows into separate inserts by shape.
+
 Before interpreting function authorization failures, confirm `npm run get-going`
 has validated each enabled function route from `supabase/config.toml`. A passing
 health function alone can miss stale Edge Runtime state after adding a new
