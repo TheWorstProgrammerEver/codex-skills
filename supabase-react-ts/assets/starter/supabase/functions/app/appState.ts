@@ -1,4 +1,4 @@
-import type { SupabaseClient } from 'npm:@supabase/supabase-js@^2'
+import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.110.0'
 import type { PendingInvitation, TeamTasksState } from '../../../common/appTypes.ts'
 import { workspaceFromRows } from './mappers.ts'
 import type { InvitationRow, MemberRow, TaskRow, WorkspaceRow } from './types/rows.ts'

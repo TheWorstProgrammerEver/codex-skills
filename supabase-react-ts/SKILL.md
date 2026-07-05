@@ -30,6 +30,7 @@ Reference starters:
 - Backend: Supabase Auth first; add Postgres migrations, Edge Functions, and RLS as mandatory safety nets when app data is introduced.
 - Boundary style: command/query request types, shared identifiers/types in `common`, client-side function invoker handlers, and function-side dispatcher handlers once product data crosses the client/function boundary.
 - Runtime config: committed `public/config.js` loader, committed substitutable `public/config.json`, ignored `public/config.local.json`, test config under `tests/visual`.
+- Deployment setup docs: committed `README.ENV.md` with placeholder-only Netlify, runtime config, Supabase dashboard, Edge Function, migration, and smoke-check steps whenever the app has hosted runtime config.
 - Developer workflow: `npm run get-going` starts dependencies, Docker/Supabase/functions/Vite, validates configured function routes rather than health alone, writes local config, exposes LAN URLs, and prints endpoints. `npm run all-done` winds everything down.
 - Tests: unit tests for pure domain/state, visual tests for core UI, and local Supabase security tests for both Edge Functions and direct publishable-key table access once app tables exist.
 
