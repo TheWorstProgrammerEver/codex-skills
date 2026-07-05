@@ -78,6 +78,16 @@ export const createThingHandler = createAppRequestHandlerFactory(
 
 Split handler files by domain capability as they grow. Keep shared helpers in function-local helpers, mappers, or profile modules.
 
+## Public URL Generation
+
+When an Edge Function emits absolute public URLs, such as QR code source links, signed callbacks, metadata URLs, or links that will be opened outside the current browser session, treat the product's public app host as explicit runtime configuration. Do not infer the canonical host from `Request.url`, `Host`, `X-Forwarded-*`, or other request-derived headers. Local Supabase/Kong and proxied hosted paths can reflect the function gateway, omit the original app port, or otherwise differ from the public product host.
+
+Keep the public-host value separate from secrets, but pass it into Edge Runtime through the app's configured environment or Supabase function secrets alongside other hosted function config. Use one small helper to parse and validate it before constructing URLs.
+
+If the public-host config is missing or invalid, fail with a clear non-success response instead of returning a plausible URL built from the request. For image-producing functions, return a non-image error response so callers and tests cannot mistake a misleading generated asset for success.
+
+Security and integration tests for public URL functions should compare generated source URLs against the same canonical helper or config value used by the app, not against request-derived hosts.
+
 ## Shared Code
 
 Use:
