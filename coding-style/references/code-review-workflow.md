@@ -1,5 +1,10 @@
 # Code Review Workflow
 
+For Linear-tracked agent reviews, use `$linear-review-workflow` for issue refresh,
+artifact discovery, no-edit reviewer posture, advise mode, Linear/GitHub output,
+verdict routing, and reviewer independence. Use this file for code-specific
+review priorities and review-response style.
+
 ## Reviewing Code
 
 - Lead with findings: bugs, behavioral regressions, security risks, data loss risks, missing validation, and missing tests.

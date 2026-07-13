@@ -1,0 +1,4 @@
+interface:
+  display_name: "Linear Review Workflow"
+  short_description: "Review Linear-tracked work"
+  default_prompt: "Use $linear-review-workflow to review the assigned Linear issue or artifact, validate narrowly, and report evidence-backed findings."
