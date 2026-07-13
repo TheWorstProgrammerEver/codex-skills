@@ -8,6 +8,16 @@
 - If there are no findings, say so directly and mention residual risk or test gaps.
 - Separate correctness concerns from style preferences. Style feedback should explain the maintainability risk or local convention it protects.
 
+## Stacked PR Stale-Base Check
+
+When a PR's base branch is another feature branch rather than the repository's primary branch, verify the downstream head still includes the current upstream work before approving or merging:
+
+- Fetch current refs first, including the upstream base branch and downstream head.
+- Inspect `git log --left-right --cherry-pick upstream-base...downstream-head` for commits that only exist on one side after cherry-pick equivalence is removed.
+- Review a two-dot diff from the current upstream base to the downstream head, such as `git diff upstream-base..downstream-head`, to spot dropped or reverted upstream fixes.
+- Confirm any upstream review-response fixes, regression tests, and command/API corrections are present in the downstream branch.
+- Require the downstream branch to be rebased or otherwise refreshed when it drops, reverts, or supersedes upstream fixes accidentally. Mergeability against the declared base is not enough evidence for stacked PR approval.
+
 ## Responding To Review
 
 - Prefer multiple small, targeted commits over large omnibus commits.
