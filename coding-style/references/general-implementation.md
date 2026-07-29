@@ -42,6 +42,43 @@
 - Avoid real agent names or `codex-agent` as generic host identity examples. Use them only when referring to a fixed service, repository, account, package, binary, or other named artifact rather than an example host.
 - Test fixtures and examples may use realistic names or paths when they make the scenario clearer, provided they remain non-secret and are not presented as production defaults.
 
+## Crash-Durable Atomic File Replacement
+
+On POSIX filesystems where reboot-safe persistence is part of the contract,
+distinguish file-content atomicity from directory-entry durability. A rename can
+make the complete new file visible to the current process without proving that
+the renamed directory entry will survive a crash.
+
+- Exclusively create a recognizable, operation-owned temporary file in the
+  destination directory with private permissions. Write all content, sync the
+  temporary file, close it, rename it over the destination, and then sync the
+  containing directory. Do not report a durable commit merely because rename
+  succeeded or the destination is visible.
+- When the destination directory can be created recursively, anchor recovery at
+  a validated, safely bounded root. Either create one directory component at a
+  time and sync its containing parent before continuing, or resolve the full
+  bounded directory chain and sync it root-to-leaf before opening a temporary
+  file.
+- On retry, sync that full bounded chain even when recursive directory creation
+  reports that it created nothing. A previous attempt may have created several
+  visible ancestors and stopped before the first containing-directory sync;
+  syncing only the destination's immediate parent does not make the higher
+  ancestor entries durable.
+- Recover before accepting an existing destination. Re-sync the bounded
+  ancestor chain, remove only temporary artifacts that the operation can prove
+  it owns, and sync the destination directory after cleanup even when no
+  temporary artifact remains. The no-temp case is required after interruption
+  between rename and directory sync.
+- Keep cleanup and retry idempotent. An absent destination stays absent after a
+  pre-rename failure, an old destination remains intact until rename, and
+  unrelated files in the directory are never cleanup candidates.
+
+Follow the failure-injection scenarios in
+[`automated-testing.md`](automated-testing.md#atomic-file-durability-tests).
+If a target platform or filesystem cannot provide the required file or
+directory sync primitive, narrow the persistence contract rather than claiming
+reboot-safe atomic replacement.
+
 ## External CLI Contracts
 
 - Treat an external CLI's accepted arguments as a versioned integration contract. When implementing or reviewing code that launches a CLI, verify the exact subcommand against the target environment's current `--help` output or current official documentation; support on a parent command, sibling subcommand, or older release is not sufficient evidence.
