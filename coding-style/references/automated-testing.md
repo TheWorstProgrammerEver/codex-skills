@@ -112,6 +112,53 @@ and the generalized contract in
 [RYA-174](https://linear.app/ryan-hayward/issue/RYA-174/hive-mind-add-fail-closed-destructive-device-guardrail-guidance);
 do not duplicate its device topology or writer matrix here.
 
+## Pinned External-Artifact Fixture Conformance
+
+Before the first destructive-device or production integration for an immutable
+external artifact, require an explicit three-way consistency gate:
+
+1. the catalog lock or
+   [immutable acquisition contract](immutable-artifact-acquisition.md#pin-the-artifact-contract),
+   including its exact length and checksum;
+2. representative metadata read from those exact checksum-verified bytes; and
+3. the checked-in fixture plus the adapter's semantic validator.
+
+Exercise the production metadata parser and validator through a safe,
+non-device probe when possible. Prefer inspecting the verified regular file
+directly. If the format requires block-layout semantics, use a test-owned
+regular backing file with a loop or equivalent adapter, read-only where
+practical, and guarantee detach, unmount, handle, and temporary-root cleanup in
+`finally`. This conformance gate must complete before an effecting adapter,
+physical target, or production import is allowed to start; keep routine
+physical-device validation separate under
+[Destructive Block-Device Safety](destructive-device-safety.md#deterministic-validation-without-devices).
+
+Give every checked-in or cached derived fixture provenance that identifies the
+source catalog revision, artifact checksum and length, metadata extraction
+method, parser or normalization revision when relevant, and the reviewed
+refresh command or procedure. Reverify cached source bytes by content identity
+before deriving or approving fixture evidence. Do not let a release label,
+filename, prior cache hit, or hand-authored fixture stand in for the pinned
+bytes.
+
+Independently drift each semantic edge. Keep the catalog and verified bytes
+fixed while changing one fixture or validator marker to another plausible
+value; keep fixture provenance fixed while selecting a different catalog
+digest; and feed validly structured metadata with one wrong product, platform,
+schema, or release marker. Each case must fail before any effecting adapter
+runs. Build expected values independently from the probe output so one shared
+bug cannot rewrite both sides of the assertion.
+
+Do not download large artifacts in every routine CI run. Run the real-byte
+conformance job when a catalog lock, fixture derivation, extractor, or semantic
+validator changes; before the first destructive or production use of a pinned
+artifact; and on a reviewed periodic release-audit cadence. Routine CI may use
+the small provenance-linked fixture and independent drift negatives. A
+content-addressed, checksum-reverified cache may support the real-byte job
+under [Immutable Artifact Acquisition](immutable-artifact-acquisition.md), but
+the validation record must state which pinned identity was reviewed and when
+the fixture must be refreshed.
+
 ## Serialized Producer-Consumer Compatibility
 
 - Passing producer and consumer unit suites do not prove their composed

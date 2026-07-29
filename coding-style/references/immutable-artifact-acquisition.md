@@ -163,6 +163,12 @@ caller could not observe the final path early.
 
 ## Related Guidance
 
+Before an adapter's first destructive or production use, apply
+[Pinned External-Artifact Fixture Conformance](automated-testing.md#pinned-external-artifact-fixture-conformance)
+to prove that the catalog lock, metadata from the exact verified bytes, and the
+checked-in semantic fixture agree. This is separate from transport, checksum,
+cache, and atomic-promotion correctness.
+
 Apply
 [RYA-158](https://linear.app/ryan-hayward/issue/RYA-158/hive-mind-verify-directory-durability-on-atomic-write-recovery)
 for directory-sync and crash-durability requirements after atomic rename; do
