@@ -77,6 +77,27 @@ and deterministic coordination fixtures below.
 - Record the shell and descendant PIDs. When the adapter settles, assert the
   expected timeout or cancellation error and that every recorded process is no
   longer live. Observing only the direct child's `exit` event is insufficient.
+- Choose the process-state predicate from the contract being tested:
+
+  | Contract | Passing observation |
+  | --- | --- |
+  | Descendant execution has terminated | Every recorded PID is absent or the platform reports a terminal, non-executing state. On Linux, `/proc/<pid>/stat` state `Z` (zombie) or `X` (dead) satisfies this predicate; a stopped but resumable process does not. |
+  | No process-table entry remains | Every recorded PID is absent after reaping; a zombie does not satisfy this stronger predicate. |
+
+  On POSIX, `kill(pid, 0)` checks whether the caller may address a process-table
+  entry. It therefore succeeds for both a live process and an unreaped zombie
+  (and a permissions error can also imply that an entry exists). Do not use it
+  alone to prove that execution continues. Use a platform-aware state probe
+  when testing termination—for example, parse the state field after the
+  parenthesized command in Linux `/proc/<pid>/stat`—and reserve an absent entry
+  such as `ESRCH` for the complete-reaping assertion.
+- Run tests for a complete-reaping guarantee under a reaping PID 1 or a
+  test-owned subreaper that adopts and waits for orphaned descendants. A zombie
+  under a non-reaping external PID 1 can be valid evidence that execution
+  stopped, but it is not evidence that reaping completed. Do not accept a live,
+  stopped, or otherwise resumable descendant, and do not excuse zombies that
+  the unit under test or its controlled test environment is responsible for
+  reaping.
 - In Node.js, observe `exit` and `close` as different lifecycle events.
   `close` waits for stdio streams to close, so a resistant descendant that
   inherited a pipe can keep it pending after the direct child exits. The hard
@@ -87,8 +108,13 @@ and deterministic coordination fixtures below.
   group, escalate it after a short grace period, wait for the owned PIDs, and
   remove PID files and temporary state.
 - Signal only the fixture's recorded PIDs or dedicated test-owned process
-  group. Do not use process-name matching or broad discovery-and-kill commands
-  that could terminate unrelated work.
+  group. Before every watchdog or `finally` signal, validate stable identity and
+  ownership captured when the fixture started, such as the expected process
+  group plus a platform start-time or equivalent identity marker. A numeric PID
+  or process-group ID alone can be reused. If ownership cannot be revalidated,
+  fail closed or tear down an enclosing isolated environment instead of
+  signaling the stale identifier. Do not use process-name matching or broad
+  discovery-and-kill commands that could terminate unrelated work.
 - Measure elapsed time with a monotonic clock. Allowing a documented scheduling
   margin, assert that the adapter did not settle before its configured timeout
   and did settle within its timeout plus termination-grace bound. Keep this
