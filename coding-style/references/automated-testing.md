@@ -11,6 +11,29 @@ Tests must clean up after themselves. A successful or failed test run should not
 - Apply Inversion of Control, Dependency Inversion, and Liskov Substitution principles to make tests meaningful without over-coupling them to implementation details.
 - Keep unit tests focused on domain behavior, parsing, state transitions, and adapter boundaries rather than incidental framework mechanics.
 
+## Serialized Producer-Consumer Compatibility
+
+- Passing producer and consumer unit suites do not prove their composed
+  compatibility. When an SDK, DTO mapper, generated client, or serializer emits
+  data for another schema or parser, feed the producer's exact serialized
+  output through the authoritative downstream consumer in at least one contract
+  test.
+- Compare every duplicated field rule across that boundary: size and numeric
+  limits, enum members, required versus optional or nullable fields, defaults
+  and normalization, and the tags and payloads of discriminated variants. Cover
+  boundary values that can reveal one side accepting a value the other rejects;
+  do not stop at representative happy-path values.
+- Prefer importing canonical constants or types from the downstream contract,
+  or centralizing them in a dependency-neutral contract package, when package
+  direction allows it. When direct reuse would create an unsuitable dependency,
+  add an explicit cross-schema parity test as well as the composed
+  producer-to-consumer test.
+- Treat a producer that can emit data rejected by its declared consumer as a
+  compatibility defect even when each schema is internally valid. In review,
+  request canonical constraint reuse or a composed boundary test; if divergence
+  is intentional, require an explicit versioned transformation and tests for
+  that behavior.
+
 ## TypeScript Workspace Validation
 
 When adding or changing cross-workspace imports, run a clean-artifact check if
