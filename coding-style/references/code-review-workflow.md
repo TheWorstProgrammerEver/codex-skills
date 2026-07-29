@@ -46,6 +46,10 @@ review priorities and review-response style.
   [Systemd Interactive Descriptor Routing](systemd-interactive-descriptors.md).
   Physical console display is not proof that inherited output descriptors are
   TTYs or that raw child output stays out of journald.
+- For physical or production validation that requires an interruption at a
+  transient state, require the blocking runbook and evidence protocol in
+  [Transient Live Checkpoint Gates](transient-live-checkpoints.md). Simulation
+  and terminal-state restart evidence do not prove live mid-flight recovery.
 
 ## Stacked PR Stale-Base Check
 
