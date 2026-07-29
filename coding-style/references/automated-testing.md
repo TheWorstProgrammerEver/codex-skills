@@ -11,6 +11,43 @@ Tests must clean up after themselves. A successful or failed test run should not
 - Apply Inversion of Control, Dependency Inversion, and Liskov Substitution principles to make tests meaningful without over-coupling them to implementation details.
 - Keep unit tests focused on domain behavior, parsing, state transitions, and adapter boundaries rather than incidental framework mechanics.
 
+## Structured-Configuration Mutation Tests
+
+For a script or adapter that edits TOML, INI, YAML, a service file, or another
+structured format, execute the production mutation path against isolated
+filesystem fixtures. An orchestration fake may prove that a caller selected the
+right file or invoked the editor, but a fake that writes the expected result
+cannot prove the real parser or transformation respects section and key
+boundaries.
+
+At minimum, exercise this matrix:
+
+| Fixture | Required evidence |
+| --- | --- |
+| Top-level defaults plus a named profile or nested section with independent same-named overrides | Only the owned top-level or selected-section keys change; every unrelated section and override retains its semantic value. |
+| Existing target keys, duplicate keys, dotted or nested collisions, and semantically equivalent bare, quoted, or escape-encoded key spellings | The documented replace-or-reject policy is applied to normalized key identity. No duplicate or scalar/table collision reaches publication. |
+| Comments, target-looking text inside multiline values, and other supported boundary syntax | The production transformation does not interpret data or comments as owned keys and preserves presentation when that is part of its contract. |
+| Idempotent rerun | A second real invocation succeeds without adding keys, changing unrelated values, or causing further byte or mode changes beyond the documented serialization policy. |
+| Malformed input and valid-but-unsupported structure | The operation fails before replacement with the documented classification and bounded guidance; original bytes and mode remain exact, and no operation-owned temporary output remains. |
+
+- Parse the actual transformed candidate with the authoritative format parser
+  and assert its target and preserved semantics. Do not parse a hand-authored
+  expected file in place of the production output. Include a valid original
+  whose transformation would become invalid, such as inserting a scalar where
+  a dotted or nested key already owns that path, and require candidate
+  validation to fail closed.
+- Keep malformed input separate from valid-but-unsupported syntax so the test
+  proves both parser rejection and the transformer's deliberate subset
+  boundary. Mutation-check the section guard or semantic key normalization when
+  practical; at least one profile or equivalent-key fixture must fail under the
+  unsafe line filter.
+- Run each case beneath a test-created temporary root. Capture original bytes
+  and mode before execution, inspect the real destination and temporary
+  namespace afterward, and remove the fixture in `finally`.
+
+Follow the implementation boundary in
+[`general-implementation.md`](general-implementation.md#structured-configuration-mutation).
+
 ## Negative Controls For Safety Harnesses
 
 A zero-valued happy-path audit does not prove that a cleanup, sandbox,

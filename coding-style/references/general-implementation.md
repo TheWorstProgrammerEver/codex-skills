@@ -42,6 +42,43 @@
 - Avoid real agent names or `codex-agent` as generic host identity examples. Use them only when referring to a fixed service, repository, account, package, binary, or other named artifact rather than an example host.
 - Test fixtures and examples may use realistic names or paths when they make the scenario clearer, provided they remain non-secret and are not presented as production defaults.
 
+## Structured-Configuration Mutation
+
+Treat TOML, INI, YAML, service files, and similar configuration as structured
+documents. A line filter that deletes or replaces a matching key without
+tracking its table, section, mapping, or value boundaries can silently cross
+into a named profile and remove an independent override. Comments, multiline
+values, dotted or nested keys, and equivalent quoted or escaped key spellings
+make textual matching still less reliable.
+
+- Prefer a real parser or format-aware editor. Define the exact owned key path
+  and section, the replace-versus-reject policy for duplicates or collisions,
+  and the preservation contract for unrelated sections, profiles, values,
+  comments, and formatting. If preserving presentation is required, choose an
+  editor that retains it rather than relying on a parse-and-reserialize cycle.
+- If a shell or line-oriented transformation is unavoidable, make it
+  deliberately section-aware and support only a documented subset of the
+  format. Normalize key identity semantically, including quoted and
+  escape-equivalent spellings. Reject ambiguous dotted or nested ownership,
+  multiline constructs, duplicate keys, or other unsupported structure before
+  changing the destination; do not let unfamiliar valid syntax fall through a
+  best-effort rewrite.
+- Parse and validate the complete generated candidate with the authoritative
+  format parser before publication. Parsing only the original does not prove
+  that deleting one spelling and inserting another did not create a duplicate,
+  scalar/table collision, or otherwise invalid document. Also assert the
+  intended target value and preservation of every unrelated semantic value.
+- Write the candidate to an operation-owned temporary file and replace the
+  destination atomically only after all validation succeeds. On unsupported
+  input or candidate failure, preserve the original bytes and mode, remove the
+  temporary output, fail closed, and give bounded operator guidance rather than
+  partially repairing the file.
+
+Use the real-path fixture matrix in
+[`automated-testing.md`](automated-testing.md#structured-configuration-mutation-tests).
+When crash-durable publication is part of the contract, also apply
+[Crash-Durable Atomic File Replacement](#crash-durable-atomic-file-replacement).
+
 ## Readiness-Gated Secret Hydration
 
 When execution needs installation, permission, version, configuration, profile,
