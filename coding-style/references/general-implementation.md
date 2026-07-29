@@ -57,6 +57,32 @@
 - Keep public implementation wording aligned with the adapter that actually runs. If lifecycle requirements replace `exec` with `spawn(..., { shell: true })`, describe a spawn-based shell adapter rather than claiming the implementation uses `exec`; distinguish a public operation named `exec` from the underlying Node.js primitive when both concepts appear.
 - Require review evidence to map each advertised platform to its termination mechanism and lifecycle validation, or to show the matching metadata, documentation, and runtime exclusion. The reviewer should not need source-task history to determine which contract applies.
 
+### Cancellation Settlement
+
+For a bounded subprocess adapter that accepts an `AbortSignal`, keep these
+ordering guarantees explicit:
+
+- Check `signal.aborted` before starting the child so an already-canceled
+  operation does not spawn.
+- After the child exists, register one idempotent abort listener and immediately
+  recheck `signal.aborted`. Route the listener and recheck through the same
+  guarded cancellation path. This precheck/listener/recheck sequence closes the
+  window where an abort event can fire before registration and otherwise be
+  missed.
+- At the adapter's terminal child boundary—normally `close`, or `error` for a
+  spawn failure—synchronously mark the operation settled, capture the accepted
+  terminal reason, exit code, and signal, and remove cancellation, timeout, and
+  forwarded-signal listeners before starting or awaiting asynchronous
+  process-tree cleanup. A later abort while cleanup is pending must not rewrite
+  the frozen outcome or start a second termination.
+- Make cancellation, terminal settlement, listener removal, and descendant
+  cleanup idempotent. Define precedence by the first accepted guarded
+  transition, not by wall-clock assumptions about nearly simultaneous events.
+- Keep this coordination contract separate from platform lifecycle claims. Use
+  the adapter's declared termination mechanism on each supported platform and
+  follow the deterministic race fixtures in
+  [`automated-testing.md`](automated-testing.md#cancellation-settlement-race-fixtures).
+
 ## Completion Checks
 
 - Re-scan touched files for responsibility creep before finishing.
