@@ -212,6 +212,64 @@ workspace exports, project-reference setup, or deliberate CI ordering. Preserve
 the pre-build order when that is the intended contract; do not assume one
 package manager or automatically add a `paths` mapping.
 
+## Final-Path Launcher Smoke Tests
+
+File presence, executable mode, checksums, source-tree imports, and placement
+manifests do not prove that an installed command can start. For every generated
+or installed launcher used as a public command, service entrypoint, scheduled
+job, helper, or hook, execute the exact staged or installed pathname in the same
+filesystem layout used by the target. Do not substitute a source-tree script,
+its resolved symlink target, or an explicit interpreter command for the shipped
+entrypoint.
+
+Run the smoke with the production interpreter/runtime selection behavior and a
+platform-equivalent sanitized environment containing only documented minimums.
+Set `PATH` to the target's expected search path, use an unrelated empty working
+directory and isolated test home, and omit developer-only module, library, and
+package-manager variables. If PATH lookup is part of the public contract, test
+both the installed pathname and command-name lookup. Invoke wrappers and
+symlinks through their public paths so their own-directory, real-path, shebang,
+relative-resource, and private dependency resolution all run as shipped.
+
+A host-neutral test case can model the invocation without prescribing one
+shell:
+
+```text
+invoke:
+  path: <staged-root>/<public-command-path>
+  cwd: <empty-test-directory>
+  env:
+    PATH: <production-minimum>
+    HOME: <isolated-test-home>
+  args: [<side-effect-free-probe>]
+```
+
+Use a side-effect-free probe such as help, version, validation-only, or a
+fixture-backed no-op. Also exercise one expected startup failure, such as
+missing optional input or invalid non-secret fixture data. Assert the documented
+exit classification and bounded diagnostic, and require captured output to
+exclude environment values, fixture contents, native absolute paths, stack
+traces, and secret-like markers. Use generated non-secret markers; never inject
+real credentials merely to test redaction.
+
+At minimum, scenario-review both placement shapes:
+
+| Placement | Required evidence |
+| --- | --- |
+| Launcher beside its dependencies or resources | The exact installed launcher starts from an unrelated working directory with the minimal production environment, proving it does not rely on the source tree or caller CWD. |
+| Public wrapper or symlink stored elsewhere | Invocation through every public path reaches the intended private runtime, interpreter, modules, and resources without developer-only PATH or module variables; the safe-failure probe remains bounded and redacted. |
+
+Treat each generated entrypoint as a separate test obligation even when several
+wrappers or services share one implementation. For a target that cannot execute
+on the build host, run the same smoke under a target-compatible emulator or on
+the actual target before claiming installation readiness; keep static identity
+and placement checks as separate evidence rather than replacing either
+boundary.
+Use
+[`packaged-runtime-verification.md`](packaged-runtime-verification.md)
+for the canonical archive, executable identity, entrypoint-mode, placement
+manifest, and isolated service-definition checks.
+
 ## Filesystem Cleanup
 
 - Wrap every test-created directory or file in `try`/`finally` and remove it with an idempotent cleanup such as `rmSync(path, { recursive: true, force: true })`.

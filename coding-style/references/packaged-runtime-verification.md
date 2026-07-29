@@ -189,3 +189,8 @@ Apply the staged publication and rollback rules in
 [`general-implementation.md`](general-implementation.md#safe-whole-directory-replacement);
 an exact placement rescan does not itself make directory publication atomic or
 crash-durable.
+Execute every generated command or service entrypoint through its staged or
+installed pathname using the
+[final-path launcher smoke tests](automated-testing.md#final-path-launcher-smoke-tests);
+static runtime identity and placement verification do not prove module,
+interpreter, working-directory, or relative-resource resolution at startup.
