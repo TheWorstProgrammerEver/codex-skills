@@ -110,16 +110,23 @@ previous tree across two promotion renames.
   and sync the parent directory. Remove the backup only after promotion has
   succeeded; when crash durability is promised, sync the parent again after
   backup removal.
-- On a pre-commit failure, or when promotion fails and rollback restores the
-  prior output, remove the operation-owned staging and any unused backup
-  artifact. Never broaden cleanup to names that are merely prefix-matched or
-  otherwise not proven to belong to this operation.
+- On a pre-commit failure, remove the operation-owned staging and any unused
+  backup artifact. When promotion fails and `backup -> output` restores the
+  prior output, sync the validated parent before treating that rollback as
+  durably restored, then clean unused operation-owned artifacts. If the sync
+  fails, preserve the prior tree at the requested output and surface an
+  unresolved recovery result rather than reporting successful restoration.
+  Never broaden cleanup to names that are merely prefix-matched or otherwise
+  not proven to belong to this operation.
 - Treat failed rollback as a distinct recovery result. If another entry has
   appeared at the requested output or restoring the backup otherwise fails,
   do not delete that entry to force the rename and do not remove the backup in
-  unconditional cleanup. Preserve the sole recoverable prior tree and return a
-  structured recovery locator proven to name the generated backup directly
-  beneath the validated parent.
+  unconditional cleanup. Preserve the sole recoverable prior tree, sync the
+  validated parent to persist the earlier `output -> backup` rename, and only
+  then return a structured recovery locator proven to name the generated
+  backup directly beneath that parent. If the parent sync fails, keep the
+  backup and report that recovery durability is unresolved; never delete the
+  only prior copy while handling or reporting the sync failure.
 - Keep recovery diagnostics bounded and redacted. Use a generic message and the
   validated operation-owned sibling locator; do not append raw exception text,
   candidate file contents, credentials, or arbitrary attacker-controlled paths.

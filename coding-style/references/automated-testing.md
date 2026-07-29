@@ -137,8 +137,8 @@ At minimum, exercise this example matrix:
 | Existing recognizable output without explicit replacement | The operation refuses before staging; the prior tree is byte-for-byte intact. |
 | Existing unrelated directory, partial lookalike, symlink, or broad target such as a filesystem or workspace root | Replacement is refused even when a force/replace option is present; no entry is moved, removed, or created. |
 | Failure before commit | The requested output stays absent, or the prior output stays unchanged; owned staging residue is removed. |
-| Promotion failure with successful rollback | The exact prior tree is restored at the requested output; owned staging and unused backup artifacts are removed. |
-| Promotion failure with failed rollback | The exact prior tree remains at the reported backup locator, staging is removed, and the backup is retained as the sole recovery copy. |
+| Promotion failure with successful rollback | The exact prior tree is restored at the requested output and the parent is synced after `backup -> output`; owned staging and unused backup artifacts are removed. |
+| Promotion failure with failed rollback | The exact prior tree remains at the reported backup locator, the parent is synced before that locator is returned, staging is removed, and the backup is retained as the sole recovery copy. |
 | Successful explicit replacement | The candidate becomes the requested output only after complete staging; the old backup and staging sibling are removed. |
 
 - Snapshot or hash the prior tree, including expected modes and nested entries,
@@ -155,10 +155,20 @@ At minimum, exercise this example matrix:
   message must not include raw filesystem exception text, fixture contents,
   secrets, or attacker-controlled path text.
 - Record the sync and rename sequence. Require all staged files and directories
-  to be synced before the prior output moves, then require
-  `output -> backup`, `staging -> output`, and parent sync in order. If backup
+  to be synced before the prior output moves. On success, require
+  `output -> backup`, `staging -> output`, and parent sync in order; if backup
   removal is part of a crash-durable success contract, require the final parent
-  sync too.
+  sync too. On successful rollback, require `backup -> output` followed by a
+  parent sync before reporting restoration. On failed rollback, require a
+  parent sync after the restore failure and before returning the backup
+  locator, so the earlier `output -> backup` rename is durable.
+- Inject failure into each rollback-outcome parent sync. A successful-rollback
+  sync failure must leave the prior tree at the requested output without
+  reporting it durably restored. A failed-rollback sync failure must retain the
+  exact prior backup and the interloper without reporting the locator as a
+  crash-durable recovery result. In both cases, require bounded, redacted
+  diagnostics and prove that failure handling does not delete the sole prior
+  tree.
 - Keep the fixture under one test-created temporary root. Preserve a failed
   rollback backup until its recovery assertions finish, then remove the whole
   root in the outer `finally`; an unconditional operation-level cleanup that
