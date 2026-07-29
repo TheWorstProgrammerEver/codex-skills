@@ -359,6 +359,33 @@ and deterministic coordination fixtures below.
   regression fails promptly while the watchdog and `finally` path still prevent
   leaked processes and temporary files.
 
+#### Recovery Process Identity Tests
+
+Test post-crash adoption separately from control through a retained current
+child handle. Drive recovery with an injected identity reader and signal sink
+so every ownership decision and denied signal is observable.
+
+| Recovery scenario | Required result |
+| --- | --- |
+| Same boot and exact PID, isolated process-group ID, and start-time ticks | Adoption may proceed; immediately before any group signal, a fresh read must match the complete tuple again. |
+| Same boot and PID but different start-time ticks | Treat as PID reuse; do not adopt, suppress a replacement launch, or signal. |
+| Different boot ID with otherwise matching numeric fields | Treat as prior-boot state; do not inspect the PID or signal the recorded group as though it were the old process. |
+| Exact numeric fields but a zombie or dead leader | Treat the leader as exited, not live or adoptable; use the canonical [RYA-157 cleanup-test guidance](https://linear.app/ryan-hayward/issue/RYA-157/hive-mind-distinguish-live-descendants-from-unreaped-zombies-in) for execution-versus-reaping assertions. |
+| Process-group ID differs from the recorded value or from the leader PID | Treat as unowned or non-isolated; do not adopt or group-signal it. |
+| Initial adoption matches, then any tuple field changes before signaling | The immediate pre-signal revalidation fails and the signal sink records no call. |
+
+- Add a deterministic hook between the initial recovery match and the signal
+  attempt. Replace one field at a time, including the process-group ID, and
+  assert that the code re-reads all fields rather than trusting a cached
+  `true`. Apply the same check before a graceful signal and escalation.
+- Assert the signal target as well as the call count: an allowed recovered
+  signal addresses only the freshly verified isolated process group, never a
+  positive PID, stale group number, process-name match, or discovered group.
+- Keep real-process smoke fixtures inside a test-owned isolated group with an
+  independent watchdog and `finally` cleanup. Use fakes for PID reuse and
+  reboot cases; tests must not wait for the host kernel to reproduce either
+  event.
+
 #### Cancellation Settlement Race Fixtures
 
 Use controlled signal, child, and cleanup collaborators to force ordering
