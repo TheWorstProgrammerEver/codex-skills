@@ -48,6 +48,15 @@
 - Keep mocked process tests for fast coverage, but do not use them alone to claim a live runner works. When the live path is part of the completion claim, run a narrow contract check or dry run against the target binary using the exact generated argument list. Prefer a check that reaches argument parsing without causing external side effects; otherwise use an isolated integration test and state the unverified boundary.
 - For wrappers around `codex exec`, inspect `codex exec --help` and exercise the wrapper-shaped arguments against the installed target CLI before claiming the live path works.
 
+## Subprocess Platform Contracts
+
+- Treat timeout, cancellation, escalation, and descendant cleanup guarantees as platform-specific compatibility contracts. Before implementing or reviewing a subprocess adapter, identify every operating-system family advertised by its package or release metadata and public documentation.
+- Terminating a direct child or shell process is not evidence that its descendants terminated. POSIX process groups and group-directed signals establish only the process-control model they were tested against; do not infer Windows process-tree cleanup from POSIX lifecycle evidence.
+- For every advertised platform, implement a platform-appropriate full-tree termination strategy and validate the claimed lifecycle bounds on that platform. Record the process-control model so shared semantics are explicit, but do not substitute another operating system's test run. Follow the real cleanup coverage in [`automated-testing.md`](automated-testing.md#bounded-subprocess-lifecycle-tests); mocked calls or a single-platform test run are not cross-platform lifecycle evidence.
+- When a platform lacks an implemented and validated cleanup strategy, exclude it consistently in package or release metadata, public compatibility and API documentation, and an early runtime guard that rejects before starting a command. A restriction in only one of those surfaces leaves a misleading compatibility contract.
+- Keep public implementation wording aligned with the adapter that actually runs. If lifecycle requirements replace `exec` with `spawn(..., { shell: true })`, describe a spawn-based shell adapter rather than claiming the implementation uses `exec`; distinguish a public operation named `exec` from the underlying Node.js primitive when both concepts appear.
+- Require review evidence to map each advertised platform to its termination mechanism and lifecycle validation, or to show the matching metadata, documentation, and runtime exclusion. The reviewer should not need source-task history to determine which contract applies.
+
 ## Completion Checks
 
 - Re-scan touched files for responsibility creep before finishing.
