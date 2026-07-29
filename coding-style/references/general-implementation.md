@@ -338,11 +338,13 @@ live lock and lets the second recoverer acquire as C. Both callers can enter the
 critical section before either releases.
 
 - Give every acquisition a unique, unguessable nonce and the stable owner
-  identity required by the platform. Publish a complete identity atomically:
-  write and sync a unique adjacent candidate before using an exclusive create,
-  hard link, or equivalent atomic absent-to-held transition. Do not expose a
-  zero-byte or partial primary lock that could mean either live initialization
-  or abandoned crash residue.
+  identity required by the platform. Exclusively create a unique adjacent
+  candidate, write and sync the complete identity there, then publish that
+  complete inode at the lock path with a hard link, rename-no-replace, or an
+  equivalent atomic absent-to-held transition. A bare exclusive create at the
+  lock path publishes its name before its contents and is not sufficient. Do
+  not expose a zero-byte or partial primary lock that could mean either live
+  initialization or abandoned crash residue.
 - Bind the identity that was observed stale to the takeover operation. Use a
   platform primitive that atomically compares and removes or replaces that
   exact generation, a kernel-managed lock whose ownership disappears on
