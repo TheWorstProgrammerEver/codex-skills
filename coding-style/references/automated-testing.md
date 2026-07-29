@@ -84,6 +84,33 @@ model, add real lifecycle coverage with these distinct fixtures:
 - Aggressively assert denied access as well as allowed access, especially for cross-user, cross-tenant, role, ownership, and unauthenticated scenarios.
 - For Supabase apps, cover Row Level Security policies and semantic Edge Function command/query authorization paths.
 
+### Structural Secret Exclusion
+
+- Treat a claim that a serialized contract structurally excludes plaintext
+  secrets as stronger than secret detection. A field-name denylist or regex is
+  only a heuristic, even when it catches familiar names; it may supplement but
+  cannot prove the structural guarantee.
+- For manifests, config, job specs, and command plans that carry environment
+  values, arguments, URLs, headers, or free-form config fields, model value
+  origins with typed, discriminated source variants such as
+  `{"kind":"secretRef","id":"example-service-login"}`. Require a secret
+  reference for credential-capable positions. If the contract also permits
+  public literals, constrain them to explicitly public fields or a versioned
+  public-key allowlist, reject unknown variants and keys, and avoid generic
+  string maps or arrays that can bypass the source boundary.
+- Add fail-closed parser and serializer tests that attempt placeholder plaintext
+  through both obvious and alias or compound-name carriers. Include cases such
+  as `PGPASSWORD`, `GITHUB_PAT`, and `DATABASE_URL`, an argument like
+  `--service-login=EXAMPLE_CREDENTIAL_VALUE`, an embedded-credential URL under
+  `connectionUrl`, and a nested config value. Assert rejection before the value
+  reaches durable JSON; renaming or composing a carrier must not change the
+  verdict.
+- Also test the allowed boundary: typed secret references round-trip without
+  secret material, and explicitly public literals still work. When an
+  implementation relies only on suspected field names, report the missing
+  structural guarantee as a required change rather than describing the
+  denylist as enforcement.
+
 ## Environment Cleanup
 
 - Tests that mutate `process.env`, current working directory, global console methods, timers, or other process-wide state must restore the original value in `finally`.
