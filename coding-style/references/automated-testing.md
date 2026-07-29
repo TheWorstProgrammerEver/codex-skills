@@ -156,6 +156,38 @@ normalization spellings in the source contract. Assert that every denied value
 is rejected by both boundaries, then serialize and parse at least one record
 per safety-relevant field so helper-only tests cannot hide schema drift.
 
+### Recovery Semantic-Invariant Tests
+
+Start with serialized checkpoints that the transition API can produce, then
+mutate one relationship at a time while leaving every individual field
+shape-valid. This keeps field validation, cross-field semantics, and external
+source-plan validation independently observable.
+
+At minimum, exercise this example matrix:
+
+| Shape-valid recovery state | Semantic result | Required evidence |
+| --- | --- | --- |
+| `currentStep: null` with `transaction: { stepId: "prepare-disk", phase: "prepared" }` | Corrupt: orphan transaction. | The recovery parser rejects before returning a valid classification or invoking resume behavior. |
+| `currentStep.id: "prepare-disk"` with `transaction.stepId: "apply-config"` | Corrupt: mismatched identities. | The parser enforces identity equality even though both identifiers are individually valid. |
+| `phase: "succeeded"` with `pendingStepIds: ["verify"]` | Corrupt: terminal success with unfinished work. | The parser enforces terminal completeness and does not continue or repair the workflow implicitly. |
+| `phase: "running"`, `currentStep: { id: "prepare-disk", attempt: 2 }`, no transaction, and `pendingStepIds: ["verify"]` | Legitimate retry/recovery state. | The semantic parser accepts it; the owning runtime separately confirms both step identities against the current source plan before resuming. |
+
+- Assert a distinct corrupt result for each impossible document rather than
+  treating it as absent, uninitialized, or valid-but-unresumable. Also assert
+  that no transition callback or resume side effect ran before rejection.
+- Derive the mutation table from documented transition preconditions and
+  postconditions. Add cases for every persisted identity relationship,
+  impossible phase combination, terminal state with unfinished work, and
+  related record that becomes required or forbidden in another state.
+- Test source-plan cross-references at the runtime boundary when the parser does
+  not own the plan. Feed the same semantically valid checkpoint to matching and
+  mismatching plans, and assert rejection before resume when the plan's
+  identity, order, or revision rules do not match.
+- Pure parser tests should avoid filesystem state. When a test writes and
+  recovers the serialized document, allocate its store under a test-created
+  isolated temporary root, clean that root in `finally`, and never point the
+  fixture at user, repository, or shared runner state.
+
 ## Process And Service Cleanup
 
 - Tests that spawn processes must wait for exit, terminate explicitly, or use a controlled fake process object.

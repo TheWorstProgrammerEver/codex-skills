@@ -111,24 +111,46 @@ established inside the intended root.
 Use the denied scenarios in
 [`automated-testing.md`](automated-testing.md#durable-state-trust-boundary-tests).
 
-## Recovery Schema Boundary Preservation
+## Recovery Validation Boundaries
 
-Serialized recovery state must preserve the safety constraints of the
-authoritative plan or command it resumes. A second validator with a similar
-name, such as "relative path," is not evidence that both boundaries accept the
-same language.
+A strict field schema proves only that each serialized value has the expected
+shape. Review durable recovery as three separate validation layers:
 
-- Reuse the canonical boundary validator for copied values whenever dependency
-  direction permits. This includes its rejection of traversal components,
-  ambiguous separators, empty components, absolutes, and normalization forms;
-  do not reproduce only the happy-path shape in the recovery schema.
+| Layer | Required decision | Owning boundary |
+| --- | --- | --- |
+| Field validation | Is every individual value structurally valid? | Serialized-state parser or schema. |
+| Cross-field semantic validation | Could the complete document have been produced by the transition API and state machine? | Recovery parser, before the document is classified as valid. |
+| External source-plan validation | Do persisted step identities, ordering, and revision claims still refer to the authoritative plan being resumed? | Owning runtime where both the parsed checkpoint and source plan are available. |
+
+- Derive cross-field invariants from the transition API rather than inferring
+  them from the serialized type. Cover identity equality, legal phase
+  combinations, terminal-state completeness, and required or forbidden related
+  records. Classify a shape-valid document that violates any invariant as
+  corrupt; never send it through the normal retry or resume path.
+- A document can therefore pass every field validator and still be corrupt.
+  Keep concrete rejected and accepted examples in the linked semantic-invariant
+  test matrix so the implementation and test guidance do not drift.
+- Keep checks at the narrowest boundary that has the required context. The
+  parser can require `transaction.stepId` to equal `currentStep.id`, but it
+  cannot prove that the shared identity exists in the current source plan when
+  the plan is not an input. Make that cross-reference an explicit runtime
+  validation before any resumed transition or side effect.
+- Serialized recovery state must also preserve field-level safety constraints
+  of the authoritative plan or command it resumes. Reuse the canonical
+  validator for copied values whenever dependency direction permits, including
+  rejection of traversal components, ambiguous separators, empty components,
+  absolutes, and normalization forms.
 - If canonical reuse would create an unsuitable dependency, require an
   explicit parity test that sends the same accepted and denied corpus through
   both validators. Also parse the exact serialized recovery record so the test
   covers the real deserialization boundary rather than helper functions alone.
-- Treat validator drift as a trust-boundary defect even when the recovery file
-  itself has private permissions and a trusted location. Safe storage does not
-  make an unsafe serialized path or identifier safe to execute.
+- Treat validator drift or an omitted state-machine invariant as a
+  trust-boundary defect even when the recovery file itself has private
+  permissions and a trusted location. Safe storage does not make unsafe
+  serialized state safe to execute.
+
+Use the mutation matrix in
+[`automated-testing.md`](automated-testing.md#recovery-semantic-invariant-tests).
 
 ## External CLI Contracts
 
