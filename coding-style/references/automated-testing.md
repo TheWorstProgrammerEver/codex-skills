@@ -11,6 +11,30 @@ Tests must clean up after themselves. A successful or failed test run should not
 - Apply Inversion of Control, Dependency Inversion, and Liskov Substitution principles to make tests meaningful without over-coupling them to implementation details.
 - Keep unit tests focused on domain behavior, parsing, state transitions, and adapter boundaries rather than incidental framework mechanics.
 
+## TypeScript Workspace Validation
+
+When adding or changing cross-workspace imports, run a clean-artifact check if
+CI performs lint or no-emit typechecking before the build, or if sibling
+packages can resolve through generated JavaScript or declarations. Workspace
+links, package `types` or `exports` fields, and project references can otherwise
+let a stale local `dist` tree hide a clean-checkout failure.
+
+1. Use the repository's native clean command or remove its exact generated
+   outputs, then confirm sibling build and declaration outputs are absent.
+2. Without rebuilding, run the same lint or no-emit typecheck path that CI runs
+   before the build.
+3. Only after the pre-build check passes, run the repository's normal
+   project-reference or package build and the remaining validation.
+
+Treat the no-emit check and the project-reference build as separate evidence.
+The first must resolve the intended source graph without creating prerequisite
+declarations; the second may build referenced packages first and thereby mask a
+broken pre-build check. Fix clean-checkout resolution with the
+repository-native approach—such as its source-resolution configuration,
+workspace exports, project-reference setup, or deliberate CI ordering. Preserve
+the pre-build order when that is the intended contract; do not assume one
+package manager or automatically add a `paths` mapping.
+
 ## Filesystem Cleanup
 
 - Wrap every test-created directory or file in `try`/`finally` and remove it with an idempotent cleanup such as `rmSync(path, { recursive: true, force: true })`.
