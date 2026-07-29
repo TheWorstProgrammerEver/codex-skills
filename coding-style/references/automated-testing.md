@@ -260,11 +260,12 @@ At minimum, scenario-review both placement shapes:
 | Public wrapper or symlink stored elsewhere | Invocation through every public path reaches the intended private runtime, interpreter, modules, and resources without developer-only PATH or module variables; the safe-failure probe remains bounded and redacted. |
 
 Treat each generated entrypoint as a separate test obligation even when several
-wrappers or services share one implementation. For a target that cannot execute
-on the build host, run the same smoke under a target-compatible emulator or on
-the actual target before claiming installation readiness; keep static identity
-and placement checks as separate evidence rather than replacing either
-boundary.
+wrappers or services share one implementation. This is an
+installation-readiness stage, separate from non-executing build-host
+verification. For a target that cannot execute on the build host, run the smoke
+under a target-compatible emulator or on the actual target; never execute
+foreign target code natively on the build host. Keep static identity and
+placement checks as separate evidence rather than replacing either boundary.
 Use
 [`packaged-runtime-verification.md`](packaged-runtime-verification.md)
 for the canonical archive, executable identity, entrypoint-mode, placement

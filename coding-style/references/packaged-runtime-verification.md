@@ -80,10 +80,12 @@ equivalent format metadata for another executable format. Do not infer the
 target architecture from the archive filename, host architecture, or successful
 tree hash.
 
-Never execute foreign target code as part of verification. Use the same
-metadata parser for native and foreign fixtures so both paths prove identity
-without requiring emulation. An optional isolated native smoke can add evidence,
-but it does not replace static metadata checks.
+Never execute foreign target code on the build host as part of static identity
+verification. Use the same metadata parser for native and foreign fixtures so
+both paths prove identity without requiring emulation. An optional isolated
+native build-host smoke can add evidence, but it does not replace static
+metadata checks or the mandatory target-compatible final-path smoke required
+before claiming installation readiness.
 
 ## Enforce Entrypoint Semantics
 
@@ -189,8 +191,15 @@ Apply the staged publication and rollback rules in
 [`general-implementation.md`](general-implementation.md#safe-whole-directory-replacement);
 an exact placement rescan does not itself make directory publication atomic or
 crash-durable.
-Execute every generated command or service entrypoint through its staged or
-installed pathname using the
-[final-path launcher smoke tests](automated-testing.md#final-path-launcher-smoke-tests);
-static runtime identity and placement verification do not prove module,
-interpreter, working-directory, or relative-resource resolution at startup.
+Keep two validation stages distinct:
+
+1. On the build host, complete static runtime identity, entrypoint, placement,
+   and service-definition verification without executing foreign target code.
+2. Before claiming installation readiness, execute every generated command or
+   service entrypoint through its staged or installed pathname on the actual
+   target or under a target-compatible emulator, using the
+   [final-path launcher smoke tests](automated-testing.md#final-path-launcher-smoke-tests).
+
+Static verification does not prove module, interpreter, working-directory, or
+relative-resource resolution at startup; target-compatible execution does not
+replace the static gates.
