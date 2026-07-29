@@ -18,6 +18,18 @@ review priorities and review-response style.
   [Recovery Semantic-Invariant Tests](automated-testing.md#recovery-semantic-invariant-tests);
   a strict field schema alone is not evidence that recovered state is safe to
   resume.
+- For every artifact rehydrated or recomputed after its producing state
+  transition, identify the logical producer and every input that affected its
+  output. Replay must reconstruct the producer-time values and context,
+  including whether an input was set or absent; reading mutable environment,
+  configuration, or workflow state at the later consumer silently changes
+  already-produced semantics.
+- Require the contract to distinguish replay from deliberate refresh. Replay
+  preserves the original producer identity and output semantics. Refresh is a
+  new production event or revision that explicitly reads current inputs and
+  invalidates or recomputes affected descendants. Verify both contracts with
+  [Derived-Artifact Replay Tests](automated-testing.md#derived-artifact-replay-tests)
+  after the checkpoint has passed the existing recovery-validity checks.
 - For resumable retry engines, distinguish the persisted attempt number from
   the number of executions that may actually have started. Require an explicit
   policy for every persistence/execution crash window, and verify with
