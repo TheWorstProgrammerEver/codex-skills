@@ -108,6 +108,35 @@ model, add real lifecycle coverage with these distinct fixtures:
 - Aggressively assert denied access as well as allowed access, especially for cross-user, cross-tenant, role, ownership, and unauthenticated scenarios.
 - For Supabase apps, cover Row Level Security policies and semantic Edge Function command/query authorization paths.
 
+### File URL To Native Path Boundaries
+
+- Treat URL-syntax validation and decoded native-path validation as separate
+  boundaries. A canonical `file:` URL can still decode to an unusable or
+  differently interpreted filesystem path. Check the URL policy, convert it,
+  then validate the exact native path before any filesystem operation.
+- Define the URL contract explicitly: local versus remote hosts, rejection of
+  queries and fragments that conversion may discard, and whether the input must
+  name a file rather than a directory. For file-only inputs, reject a trailing
+  separator lexically; verifying the existing path's type is a separate I/O
+  responsibility.
+- Reject percent-encoded NUL and encoded slash or backslash spellings in the
+  source URL before decoding, then reject NUL and unexpected platform
+  separators in the converted path. Do not rely on every platform's URL
+  converter rejecting the same encoded separators.
+- Exercise literal and percent-encoded parent segments. URL construction may
+  normalize them before later checks can observe the original spelling, so
+  inspect raw input when traversal syntax itself is forbidden and always apply
+  containment policy to the final normalized native path. For operations that
+  canonicalize existing paths or promise symlink containment, also follow
+  [Trusted Path Boundaries](shell-safety.md#trusted-path-boundaries).
+- Keep parser and conversion unit tests no-I/O: cover encoded NUL, encoded slash
+  and backslash, parent segments, a remote host, query and fragment suffixes, a
+  directory-shaped URL, and a valid local file URL constructed with
+  `pathToFileURL(join(tmpdir(), "example.txt"))`. Assert the rejection stage or
+  reason, not only that an error occurred. Put existence, file-type, symlink,
+  and canonical-containment promises in separate temporary-fixture integration
+  tests with cleanup.
+
 ### Structural Secret Exclusion
 
 - Treat a claim that a serialized contract structurally excludes plaintext
