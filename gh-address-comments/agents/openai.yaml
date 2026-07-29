@@ -1,0 +1,4 @@
+interface:
+  display_name: "Address GitHub PR Comments"
+  short_description: "Inspect thread-aware GitHub PR feedback"
+  default_prompt: "Use $gh-address-comments to inspect thread-aware pull request feedback and plan the selected fixes."
