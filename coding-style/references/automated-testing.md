@@ -645,6 +645,35 @@ At minimum, exercise this example matrix:
   structural guarantee as a required change rather than describing the
   denylist as enforcement.
 
+### Readiness-Gated Secret Hydration Tests
+
+- Inject a hydration spy at the orchestration boundary. For every readiness
+  failure, cancellation, timeout, and retry result, assert that the spy was
+  untouched, no execution process or remote request started, and no ephemeral
+  prompt artifact was created. Cover each applicable install, permission,
+  version, configuration, profile, and authentication gate rather than one
+  representative failure.
+- Exercise a fail-then-retry sequence with the same workflow instance. The
+  first failed readiness attempt must leave hydration at zero. A later
+  successful readiness attempt may hydrate exactly once and only then execute;
+  repeated readiness failures must never accumulate hydration calls.
+- Keep a compile-time or construction test for the structural boundary where
+  the language and tooling support it: readiness accepts only the non-secret
+  descriptor and narrowly scoped authentication capability, while execution
+  separately requires prompt bytes. A runtime spy proves observed ordering;
+  the API-shape test prevents a refactor from making already-hydrated bytes
+  available to preflight.
+- Use generated placeholder markers, never real secrets. Make a readiness fake
+  throw or emit a marker, then assert the stable result, logs, checkpoints, and
+  diagnostics contain neither that raw marker nor the prompt marker. Also
+  confirm that automatic-authentication fakes expose only bounded status or
+  error codes, not credential values or raw subprocess output.
+- Mutation-check the regression when practical: move hydration before
+  readiness, pass the complete execution input into preflight, or let one gate
+  skip the readiness-only interface. At least one relevant test must fail for
+  each weakened boundary; otherwise the suite proves only the current happy
+  path.
+
 ## Environment Cleanup
 
 - Tests that mutate `process.env`, current working directory, global console methods, timers, or other process-wide state must restore the original value in `finally`.

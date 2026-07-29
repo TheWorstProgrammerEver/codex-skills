@@ -42,6 +42,67 @@
 - Avoid real agent names or `codex-agent` as generic host identity examples. Use them only when referring to a fixed service, repository, account, package, binary, or other named artifact rather than an example host.
 - Test fixtures and examples may use realistic names or paths when they make the scenario clearer, provided they remain non-secret and are not presented as production defaults.
 
+## Readiness-Gated Secret Hydration
+
+When execution needs installation, permission, version, configuration, profile,
+or authentication checks, make readiness and secret-bearing workload
+construction separate stages:
+
+```text
+non-secret descriptor -> readiness -> secret hydration -> execution
+```
+
+Encode the separation in the API instead of relying only on call order. A
+convention such as "always call `prepare` first" can regress when a refactor
+builds one complete input early, passes it through preflight, or adds diagnostic
+logging there. A type, interface, capability, module boundary, or separate
+process makes prompt bytes structurally unavailable to readiness code and turns
+many ordering regressions into compile-time or construction failures.
+
+For example, a typed implementation can expose a readiness-only input and
+return an execution capability that does not exist until readiness succeeds:
+
+```ts
+type ReadinessInput = {
+  readonly descriptor: NonSecretWorkDescriptor;
+  readonly auth: AuthenticationCapability;
+};
+
+type ReadyExecutor = {
+  execute(input: { readonly prompt: Uint8Array }): Promise<void>;
+};
+
+const ready = await provider.prepare(readinessInput);
+const prompt = await promptHydrator.hydrate(secretReferences);
+await ready.execute({ prompt });
+```
+
+`NonSecretWorkDescriptor` may contain provider and step identifiers, public
+command shape, required version, profile name, working-directory policy, and
+opaque secret references. It must not contain hydrated prompt bytes, expanded
+secret values, a general environment snapshot that can carry them, or a
+hydrator capable of producing them. Keep those secret-bearing values in the
+post-readiness execution input. In languages without static types, enforce the
+same rule with separate constructors, capability objects, modules, or process
+messages whose readiness schema cannot represent prompt bytes.
+
+Authentication readiness may itself need sensitive credentials. Give preflight
+only a narrowly scoped capability that can perform the required authentication
+or status operation without returning credential material; do not give it the
+prompt hydrator or complete workload. Bound and redact every readiness
+diagnostic, including install and authentication failures: return stable stage
+or error codes, and do not include raw exceptions, subprocess output,
+credentials, hydrated content, or attacker-controlled configuration text.
+
+The same pattern applies outside interactive providers. A deployment workflow,
+for example, can validate the client installation, required version, selected
+account, and authenticated session from non-secret metadata; only after those
+checks succeed should it resolve secret references into a deployment payload
+and submit it.
+
+Follow the failure, retry, and mutation checks in
+[`automated-testing.md`](automated-testing.md#readiness-gated-secret-hydration-tests).
+
 ## Crash-Durable Atomic File Replacement
 
 On POSIX filesystems where reboot-safe persistence is part of the contract,
