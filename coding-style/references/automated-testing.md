@@ -242,6 +242,48 @@ At minimum, exercise this example matrix:
   isolated temporary root, clean that root in `finally`, and never point the
   fixture at user, repository, or shared runner state.
 
+### Derived-Artifact Replay Tests
+
+Apply these scenarios only after the checkpoint has passed
+[Recovery Semantic-Invariant Tests](#recovery-semantic-invariant-tests).
+Valid recovery state does not prove that a derived artifact will be reproduced
+with the context of the step that logically produced it.
+
+Start from a pure fake producer whose output bytes depend on an allowlisted,
+non-secret input such as `RENDER_MODE`. Record producer context with both the
+value and a presence bit so unset and empty values remain distinguishable.
+Capture the uninterrupted output as the replay oracle, then exercise this
+matrix:
+
+| Scenario | Mutation between producer and consumer | Required evidence |
+| --- | --- | --- |
+| Uninterrupted execution | None; produce with `RENDER_MODE=before` and consume immediately. | The consumer receives the producer's exact output bytes and behavior. |
+| Intervening set | Change the consumer-time fake environment to `RENDER_MODE=after` after the produced checkpoint. | Rehydration still receives `before` from immutable producer context and exactly matches the uninterrupted bytes; no consumer-time environment read affects replay. |
+| Intervening unset or newly set value | Unset a value that was present at production, and separately set `RENDER_MODE=after` when it was absent at production. | Both replays preserve the original presence/value pair rather than collapsing absent, empty, and changed inputs. |
+| Same-process retry | Let the first consumer attempt observe the derived bytes and fail, mutate the live fake environment, then retry without restarting the runtime. | Every attempt receives byte-identical input and makes the same producer-derived decision; retry does not refresh implicitly. |
+| Reboot/resume | Serialize the valid checkpoint and producer context, construct a fresh runtime, and give its live fake environment a different value or presence state. | Recomputed bytes and observable behavior equal the uninterrupted oracle before any resumed side effect. |
+| Deliberate refresh | Invoke a separately named refresh transition after changing the input to `after`. | The refreshed artifact uses `after`, records a new producer identity or revision, and explicitly invalidates or recomputes every affected descendant. |
+
+- Identify all semantic producer inputs, not only function arguments. Bind
+  template and plan revisions, selected configuration, presence-aware
+  environment values, and relevant locale, time, or working context when they
+  can change output. An unversioned reference to mutable current state is not
+  producer context.
+- Persist the minimum immutable values or version identities needed to
+  reconstruct the producer. If exact replay cannot be supported, persist the
+  artifact through an appropriate protected channel or declare refresh
+  semantics; do not label consumer-time recomputation as replay.
+- Compare exact bytes or a collision-resistant digest plus the consumer's
+  observable decision. Matching checkpoint fields or merely completing the
+  workflow does not prove semantic equivalence.
+- Prefer injected environment, configuration, clock, and renderer fakes. If a
+  focused integration test mutates process-wide state or writes a checkpoint,
+  use a test-created temporary root and restore every set/unset value in
+  `finally`. Follow
+  [Structural Secret Exclusion](#structural-secret-exclusion)
+  instead of capturing a whole real environment or persisting plaintext secret
+  values in replay fixtures.
+
 ### Ambiguous In-Flight Retry-Budget Tests
 
 Treat a persisted attempt number and the possible number of executions as
