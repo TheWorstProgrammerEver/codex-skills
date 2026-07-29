@@ -55,6 +55,13 @@ The final `comm` output should be empty.
 - Tests that mutate `process.env`, current working directory, global console methods, timers, or other process-wide state must restore the original value in `finally`.
 - Capture originals before mutation and restore even when assertions fail.
 
+## CI Container Hardening
+
+For GitHub Actions job containers, follow
+[`github-actions-container-hardening.md`](github-actions-container-hardening.md).
+It is the canonical guidance for combining runner mount compatibility with
+dropped capabilities, `no-new-privileges`, and no host block-device access.
+
 ## Review Checklist
 
 - Search tests for temp creation APIs and confirm each allocation has a cleanup path.
