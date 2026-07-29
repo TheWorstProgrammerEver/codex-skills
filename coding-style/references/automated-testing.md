@@ -11,6 +11,107 @@ Tests must clean up after themselves. A successful or failed test run should not
 - Apply Inversion of Control, Dependency Inversion, and Liskov Substitution principles to make tests meaningful without over-coupling them to implementation details.
 - Keep unit tests focused on domain behavior, parsing, state transitions, and adapter boundaries rather than incidental framework mechanics.
 
+## Negative Controls For Safety Harnesses
+
+A zero-valued happy-path audit does not prove that a cleanup, sandbox,
+redaction, network-denial, device-denial, or secret-leak detector can observe
+the effect it claims to prohibit. Treat the detector and its outer harness as
+code under test. For every claimed safety boundary, keep all three controls:
+
+- a clean baseline that passes with zero violations;
+- a harmless controlled violation that crosses the monitored boundary and
+  makes the outer harness fail; and
+- an allowed near-boundary control that remains permitted and distinguishes a
+  real effect from inert data, syntax, or another lookalike.
+
+Replace or bypass the detector with a no-op in a mutation check when practical.
+At least one controlled-violation regression must then fail for the expected
+missing observation. Asserting only an internal detector callback is weaker
+than invoking the same outer command, test runner, or audit path that enforces
+the safety result in normal use.
+
+Run every controlled violation inside an isolated fake, temporary root,
+disposable local emulator, or harmless virtual fixture. Never use a physical
+device, real secret, external provider, host service, privileged operation, or
+production-like account as the violation target. Generate non-secret fixture
+markers and require concise structured diagnostics containing only a stable
+detector code, bounded counts, and redacted labels. Assert that raw markers,
+fixture contents, native paths, and adapter output are absent from the failure
+message and captured logs.
+
+Give the negative-control test its own hard watchdog, independent of the
+detector's timeout. Register every test-owned process, timer, listener, and
+temporary path before the controlled effect can occur, and release them through
+idempotent `finally` cleanup. Await cleanup and clear the watchdog itself.
+Afterward, prove that the recorded processes reached the promised terminal
+state and that no test-prefixed file or directory was added. A safety regression
+that can itself leak work is not acceptable evidence.
+
+### Process-Tree Detectors
+
+Do not discover descendants only from a before/after ancestry snapshot taken
+after the launcher exits. A surviving grandchild can be reparented before that
+snapshot and disappear from the launcher's descendant tree. Instead, have the
+fixture publish every test-owned stable identity while the launcher and child
+relationship still exists. On Linux, retain at least the PID, start-time ticks,
+and isolated process-group identity; keep an additional test nonce or
+fixture-owned channel when the harness uses one.
+
+After allowing the launcher to exit, look up those recorded identities directly
+and require the controlled live orphan to make the outer cleanup audit fail
+even after it has been reparented to PID 1 or a subreaper. Revalidate stable
+ownership before every watchdog or `finally` signal so PID reuse cannot redirect
+cleanup. Pair this violation with an allowed control whose descendant exits and
+is reaped within the contract.
+
+Use the lifecycle, watchdog, escalation, and timing fixtures in
+[Bounded Subprocess Lifecycle Tests](#bounded-subprocess-lifecycle-tests) and
+[RYA-150](https://linear.app/ryan-hayward/issue/RYA-150/hive-mind-test-bounded-subprocess-cleanup-with-resistant-descendants).
+Choose execution termination versus complete reaping explicitly; use the
+zombie predicates in
+[RYA-157](https://linear.app/ryan-hayward/issue/RYA-157/hive-mind-distinguish-live-descendants-from-unreaped-zombies-in)
+instead of copying that process-state matrix here.
+
+### Filesystem And Device-Denial Detectors
+
+State the exact enforcement boundary. Prefer a lower sandbox, system-call, or
+injected adapter boundary over patching a convenient subset of high-level
+callers when the supported platform can provide it without privileged or
+physical-device fixtures. If interception remains at a language filesystem
+API, enumerate the supported functions, overloads, and path-taking operands;
+do not describe the result broadly as “no device access.”
+
+Drive a synthetic forbidden namespace or regular files under a temporary root
+through representative callback, promise, and synchronous variants. Cover:
+
+- metadata and canonicalization such as `access`, `stat`, `lstat`, and
+  `realpath`;
+- enumeration such as `readdir` and `opendir`;
+- open, read, and write paths such as `open`, `readFile`, and `writeFile`; and
+- read and write stream construction.
+
+Include direct paths and every supported file-URL form. If already-open
+descriptors are part of the claim, state how their origin remains attributable;
+otherwise exclude descriptor-only calls explicitly and guard descriptor
+acquisition. Assert that every promised operation reaches the same denial
+result before its underlying adapter performs I/O. An unguarded representative
+call in any claimed category must make the outer harness fail.
+
+Classify each multi-path API operand by whether that operation actually accesses
+it. For example, `symlink(target, destination)` stores `target` as opaque text
+and performs creation I/O at `destination`; a path-like target naming a
+synthetic forbidden namespace is therefore an allowed control when the
+destination is inside the temporary fixture. A later `stat`, `realpath`, or
+`open` that dereferences that link is real filesystem access and must trigger
+the controlled violation. Keep analogous allowed controls for every detector
+so fail-closed enforcement does not become fail-everything matching.
+
+For destructive-device workflows, reuse the fixture and adapter constraints in
+[Deterministic Validation Without Devices](destructive-device-safety.md#deterministic-validation-without-devices)
+and the generalized contract in
+[RYA-174](https://linear.app/ryan-hayward/issue/RYA-174/hive-mind-add-fail-closed-destructive-device-guardrail-guidance);
+do not duplicate its device topology or writer matrix here.
+
 ## Serialized Producer-Consumer Compatibility
 
 - Passing producer and consumer unit suites do not prove their composed
