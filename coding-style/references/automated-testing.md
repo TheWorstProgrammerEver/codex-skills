@@ -77,6 +77,43 @@ comm -13 /tmp/project-before.txt /tmp/project-after.txt
 
 The final `comm` output should be empty.
 
+### Atomic File Durability Tests
+
+Test a reboot-safe atomic replacement as an ordered persistence protocol, not
+only as a final-content assertion. Use injectable filesystem operations or
+fault hooks to stop at exact boundaries, then construct a fresh store or
+recovery object against the same isolated temporary root.
+
+At minimum, exercise this example matrix:
+
+| Interrupted attempt | Required recovery evidence |
+| --- | --- |
+| Destination absent; failure before rename | The destination remains absent, owned temporary residue is removed, and recovery does not invent a committed file. |
+| Old destination present; failure before rename | The old bytes remain intact while the temporary file contains or contained the candidate bytes. |
+| Rename succeeds; failure before destination-directory sync | The new destination may already be visible and the temporary name may be gone, but retry still syncs the existing destination directory before accepting the file as durable. |
+| Owned temporary residue beside unrelated files | Recovery removes only the exact operation-owned artifacts and leaves every unrelated file unchanged. |
+
+- Record or spy on the sequence `write -> file sync -> close -> rename ->
+  directory sync`. Inject immediately before rename and immediately after
+  rename but before directory sync; a visible destination is not enough to
+  pass the post-rename case.
+- For a nested destination whose ancestors do not yet exist, inject before and
+  after the sync associated with every newly created ancestor. Retry each
+  interruption against the same root and assert that the safely bounded
+  ancestor chain is synced root-to-leaf before another temporary file is
+  opened.
+- Include a retry where all nested directories are visible and recursive
+  creation reports no newly created path. Assert the same full-chain sync;
+  otherwise the test misses an interruption that created several ancestors but
+  stopped before their containing directory entries became durable.
+- After recovery removes a temporary entry, require another destination-
+  directory sync. Also require that sync when recovery finds no temporary entry
+  because rename may have consumed it just before interruption.
+- Allocate every scenario under its own test-created temporary root, retain the
+  exact owned temporary names for assertions and cleanup, and remove the root
+  in `finally`. Never fault-test against a user, repository, or shared state
+  directory.
+
 ## Process And Service Cleanup
 
 - Tests that spawn processes must wait for exit, terminate explicitly, or use a controlled fake process object.
