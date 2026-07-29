@@ -3,15 +3,21 @@
 ## Allowlist Validation
 
 - Treat Bash `case` patterns as globs, not regular expressions. In a pattern such as `[a-z_][a-z0-9_-]*`, the final `*` matches any suffix; it does not repeat the preceding character class.
-- Express an allowlist with separate structural checks. For a lowercase account name that starts with a letter or underscore and otherwise permits letters, digits, underscores, and hyphens:
+- Bracket ranges such as `[a-z]` follow the active locale's collation rules. When the contract requires ASCII, establish C/POSIX semantics for the match (or enumerate the permitted ASCII characters) instead of relying on the host locale or Bash's `globasciiranges` setting.
+- Express an allowlist with separate structural checks. For an ASCII lowercase account name that starts with a letter or underscore and otherwise permits letters, digits, underscores, and hyphens:
 
   ```bash
-  case "$account_name" in
-    ""|[!a-z_]*|*[!a-z0-9_-]*) reject_account_name ;;
-  esac
+  validate_account_name() {
+    local LC_ALL=C
+
+    case "$1" in
+      ""|[!a-z_]*|*[!a-z0-9_-]*) return 1 ;;
+      *) return 0 ;;
+    esac
+  }
   ```
 
-- Probe both accepted boundaries and adversarial rejections. Include unexpected separators or punctuation such as `ab/evil`, `ab.upper`, and `ab:evil`, plus empty input, a disallowed first character, and the shortest valid value.
+- Probe both accepted boundaries and adversarial rejections. Include unexpected separators or punctuation such as `ab/evil`, `ab.upper`, and `ab:evil`, plus empty input, a disallowed first character, the shortest valid value, uppercase ASCII, and non-ASCII letters under an available non-C locale.
 
 ## Trusted Path Boundaries
 
