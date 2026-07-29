@@ -36,6 +36,40 @@ The final `comm` output should be empty.
 - Tests that install or simulate services, timers, hooks, locks, or scheduler state must isolate them under a temp root and remove that root in `finally`.
 - Avoid writing to real user or system locations unless the test is explicitly an integration test and the cleanup path is validated.
 
+### Bounded Subprocess Lifecycle Tests
+
+Timeout errors and direct-child exit are not proof that a bounded subprocess
+adapter cleaned up the full command tree. On every supported process-control
+model, add real lifecycle coverage with these distinct fixtures:
+
+| Fixture | What it proves |
+| --- | --- |
+| A direct child that accepts the graceful termination signal | The basic timeout and graceful-stop path works, but not descendant cleanup. |
+| An ordinary shell that remains running while its descendant accepts the signal | Cleanup reaches a shell descendant without relying on shell replacement such as `exec`. |
+| A same-group shell descendant that ignores the graceful signal and inherits a captured stdout or stderr descriptor | Cleanup escalates within a bound and does not wait forever for stream closure. |
+
+- Record the shell and descendant PIDs. When the adapter settles, assert the
+  expected timeout or cancellation error and that every recorded process is no
+  longer live. Observing only the direct child's `exit` event is insufficient.
+- In Node.js, observe `exit` and `close` as different lifecycle events.
+  `close` waits for stdio streams to close, so a resistant descendant that
+  inherited a pipe can keep it pending after the direct child exits. The hard
+  test deadline and cleanup trigger must not depend only on `close`.
+- Start a test-owned watchdog before the adapter can hang, and keep idempotent
+  cleanup in `finally`. For example, create a dedicated process group for the
+  fixture, retain its exact group and descendant IDs, gracefully terminate that
+  group, escalate it after a short grace period, wait for the owned PIDs, and
+  remove PID files and temporary state.
+- Signal only the fixture's recorded PIDs or dedicated test-owned process
+  group. Do not use process-name matching or broad discovery-and-kill commands
+  that could terminate unrelated work.
+- Measure elapsed time with a monotonic clock. Allowing a documented scheduling
+  margin, assert that the adapter did not settle before its configured timeout
+  and did settle within its timeout plus termination-grace bound. Keep this
+  expected deadline shorter than the independent watchdog deadline so a
+  regression fails promptly while the watchdog and `finally` path still prevent
+  leaked processes and temporary files.
+
 ## Database And Integration Cleanup
 
 - Integration tests that manipulate databases must isolate their data by transaction, schema, test database, tenant, user, or unique test prefix.
