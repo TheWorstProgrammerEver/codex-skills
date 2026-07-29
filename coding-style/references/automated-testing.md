@@ -64,7 +64,9 @@ The final `comm` output should be empty.
 
 Timeout errors and direct-child exit are not proof that a bounded subprocess
 adapter cleaned up the full command tree. On every supported process-control
-model, add real lifecycle coverage with these distinct fixtures:
+model, add real lifecycle coverage with these distinct fixtures. Pair it with
+the [cancellation-settlement checklist](general-implementation.md#cancellation-settlement)
+and deterministic coordination fixtures below.
 
 | Fixture | What it proves |
 | --- | --- |
@@ -93,6 +95,29 @@ model, add real lifecycle coverage with these distinct fixtures:
   expected deadline shorter than the independent watchdog deadline so a
   regression fails promptly while the watchdog and `finally` path still prevent
   leaked processes and temporary files.
+
+#### Cancellation Settlement Race Fixtures
+
+Use controlled signal, child, and cleanup collaborators to force ordering
+boundaries without scheduler timing. These fakes prove adapter coordination,
+not real process-tree termination; retain the platform-specific lifecycle
+fixtures above for every declared process-control model.
+
+- For cancellation between the initial precheck and listener registration,
+  wrap an `AbortController` so the first `aborted` read returns false, then make
+  `addEventListener` abort the underlying controller immediately before it
+  forwards the listener registration. The event is deliberately missed, so the
+  post-registration `aborted` recheck must drive the guarded cancellation path.
+  Assert that the child starts once and settles as canceled. Temporarily remove
+  the recheck and confirm this fixture remains pending until its independent
+  watchdog fails rather than passing accidentally.
+- For cancellation after child completion while descendant cleanup is pending,
+  make cleanup return a deferred promise. Emit the terminal `close` event,
+  verify the cancellation listener has already been removed, abort while the
+  deferred cleanup is unresolved, then release cleanup. Assert that completion
+  retains the exit reason, code, and signal captured at `close`, and that no
+  second termination starts. Exercise the equivalent `error` boundary when
+  asynchronous cleanup is part of the adapter's spawn-failure path.
 
 ## Database And Integration Cleanup
 
