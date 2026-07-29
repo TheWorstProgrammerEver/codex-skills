@@ -41,6 +41,11 @@ review priorities and review-response style.
   authentication capabilities. Prefer a type or capability boundary over a
   call-order convention, and verify every failure and retry path with
   [Readiness-Gated Secret Hydration Tests](automated-testing.md#readiness-gated-secret-hydration-tests).
+- For systemd-backed interactive services, review stdin, stdout, and stderr
+  destinations independently and follow
+  [Systemd Interactive Descriptor Routing](systemd-interactive-descriptors.md).
+  Physical console display is not proof that inherited output descriptors are
+  TTYs or that raw child output stays out of journald.
 
 ## Stacked PR Stale-Base Check
 

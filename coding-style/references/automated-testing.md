@@ -449,6 +449,10 @@ Enumerate at least these ordered crash windows:
 - Tests that spawn processes must wait for exit, terminate explicitly, or use a controlled fake process object.
 - Tests that install or simulate services, timers, hooks, locks, or scheduler state must isolate them under a temp root and remove that root in `finally`.
 - Avoid writing to real user or system locations unless the test is explicitly an integration test and the cleanup path is validated.
+- For systemd services that combine an interactive physical console with
+  structured journal logging, apply the descriptor-routing fakes and isolated
+  `isatty` scenarios in
+  [`systemd-interactive-descriptors.md`](systemd-interactive-descriptors.md#descriptor-routing-tests).
 
 ### Bounded Subprocess Lifecycle Tests
 
