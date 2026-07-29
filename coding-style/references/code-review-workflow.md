@@ -36,6 +36,11 @@ review priorities and review-response style.
   [Ambiguous In-Flight Retry-Budget Tests](automated-testing.md#ambiguous-in-flight-retry-budget-tests)
   that recovery cannot replay one `started` attempt indefinitely under an
   unchanged budget.
+- For staged workflows that hydrate secret-bearing prompts or payloads, require
+  readiness code to accept only non-secret descriptors and narrowly scoped
+  authentication capabilities. Prefer a type or capability boundary over a
+  call-order convention, and verify every failure and retry path with
+  [Readiness-Gated Secret Hydration Tests](automated-testing.md#readiness-gated-secret-hydration-tests).
 
 ## Stacked PR Stale-Base Check
 
