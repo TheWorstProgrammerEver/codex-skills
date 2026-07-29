@@ -249,6 +249,55 @@ workspace exports, project-reference setup, or deliberate CI ordering. Preserve
 the pre-build order when that is the intended contract; do not assume one
 package manager or automatically add a `paths` mapping.
 
+## Native Optional-Dependency Lockfile Portability
+
+Treat a platform-specific native binding missing after `npm ci` as dependency
+and environment evidence before attributing it to the submitted product diff.
+A lockfile or module tree hydrated on one operating system or architecture can
+hide an omitted optional package until a clean install runs on another supported
+target.
+
+When the dependency graph includes native prebuilds or packages constrained by
+`os` or `cpu`, validate from clean disposable checkouts:
+
+1. Preserve the submitted `package-lock.json`, record the target operating
+   system, architecture, Node.js version, and npm version, then run the
+   repository's lockfile-backed install and normal check, test, build, and
+   runtime-startup commands. `npm ci --ignore-scripts` can isolate package
+   resolution when lifecycle scripts are not part of the claim, but it does not
+   replace a required production-equivalent install or runtime smoke.
+2. Repeat the lockfile-backed path on every supported architecture, or use an
+   equivalent CI matrix. A hosted x64 success is not evidence that a clean ARM64
+   install received its native optional package, and the reverse is equally
+   true.
+3. If one target reports a missing platform package or native binding, retain
+   that failed checkout and its unchanged lockfile as evidence. Confirm whether
+   the submitted diff changed dependency manifests or the lockfile, and keep
+   the install-portability finding separate from failures caused by product
+   code.
+4. In another disposable copy only, remove both the module tree and lockfile,
+   perform a clean reinstall, and rerun the failing check or build as a
+   diagnostic. Success shows that current dependency resolution can produce a
+   working target graph; it does not prove that the submitted lockfile is
+   portable and it does not authorize replacing that lockfile in a review.
+5. Route an intentional lockfile regeneration through the normal implementation
+   and review workflow. Inspect the entire dependency delta, explain why it is
+   expected, and rerun the supported-architecture matrix against the proposed
+   lockfile before accepting it.
+
+Use [Final-Path Launcher Smoke Tests](#final-path-launcher-smoke-tests) for the
+installed entrypoint's runtime evidence. When a project ships a private native
+or foreign-architecture runtime rather than an npm-resolved binding, use
+[`packaged-runtime-verification.md`](packaged-runtime-verification.md) for that
+artifact's identity, placement, and target checks.
+
+Scenario-review the evidence and routing explicitly:
+
+| Submitted change and observations | Correct routing |
+| --- | --- |
+| A content-only PR leaves manifests and lockfile unchanged; hosted x64 install, checks, and build pass; a clean ARM64 `npm ci` later installs no required optional native package and the build fails with a missing-binding error; a separate lockfile-free ARM64 reinstall checks and builds successfully. | Do not rewrite the content PR's lockfile or label the missing binding a product-diff regression. Record the original ARM64 failure and diagnostic success separately. If ARM64 is a required merge target, route a reviewed lockfile/dependency fix before claiming portability; if the content review's declared target is the already-passing x64 path, decide that artifact on its own evidence and open or link the portability follow-up explicitly. |
+| A dependency or lockfile change passes on the developer architecture but fails to resolve a native optional package on another supported target. | Treat portability as part of the submitted dependency delta, require a reviewed correction, and rerun the clean architecture matrix. |
+
 ## Final-Path Launcher Smoke Tests
 
 File presence, executable mode, checksums, source-tree imports, and placement
