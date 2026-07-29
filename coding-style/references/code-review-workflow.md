@@ -18,6 +18,12 @@ review priorities and review-response style.
   [Recovery Semantic-Invariant Tests](automated-testing.md#recovery-semantic-invariant-tests);
   a strict field schema alone is not evidence that recovered state is safe to
   resume.
+- For resumable retry engines, distinguish the persisted attempt number from
+  the number of executions that may actually have started. Require an explicit
+  policy for every persistence/execution crash window, and verify with
+  [Ambiguous In-Flight Retry-Budget Tests](automated-testing.md#ambiguous-in-flight-retry-budget-tests)
+  that recovery cannot replay one `started` attempt indefinitely under an
+  unchanged budget.
 
 ## Stacked PR Stale-Base Check
 

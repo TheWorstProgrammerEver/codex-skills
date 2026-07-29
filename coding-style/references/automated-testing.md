@@ -188,6 +188,55 @@ At minimum, exercise this example matrix:
   isolated temporary root, clean that root in `finally`, and never point the
   fixture at user, repository, or shared runner state.
 
+### Ambiguous In-Flight Retry-Budget Tests
+
+Treat a persisted attempt number and the possible number of executions as
+different quantities. A checkpoint such as `phase: "started", attempt: 1`
+proves that attempt 1 was reserved; after an interruption, it does not prove
+whether the command never started, is still running, completed, or produced
+external effects. Keep semantic validity checks in
+[RYA-160](https://linear.app/ryan-hayward/issue/RYA-160/hive-mind-validate-semantic-invariants-in-recovered-state);
+apply the execution-budget contract after a legitimate in-flight state is
+recognized.
+
+Enumerate at least these ordered crash windows:
+
+| Interruption window | Recovery requirement |
+| --- | --- |
+| Before the `started` checkpoint is durably persisted | No execution may have started. Recovery may reserve an attempt, but it must durably persist that reservation before launch. |
+| After `started` is persisted but before execution begins | The local checkpoint is indistinguishable from a later interruption unless a trusted external reconciler proves that launch never occurred. Apply the configured ambiguous-work policy. |
+| After execution begins or completes but before its outcome is durably persisted | Count the reserved attempt as a possible execution. Replaying it under the same attempt number evades the budget and can duplicate non-idempotent effects. Reconcile, consume another durably reserved budget slot, or stop for manual intervention. |
+| After the outcome is durably persisted | Resume from that outcome. Never rerun a recorded success; a recorded failure may advance only through the normal next-attempt reservation and budget check. |
+
+- Define whether ambiguous in-flight work is reconciled, conservatively
+  consumed, retried with a new durably persisted attempt, or stopped for manual
+  intervention. If persisting the new reservation fails, fail before launch.
+  The configured maximum must bound executions that may actually have started
+  across restarts, not merely the largest attempt number observed in one
+  checkpoint.
+- For a focused regression, seed `maxAttempts: 1` with
+  `phase: "started", attempt: 1`, construct a fresh runtime against that same
+  checkpoint more than once, and retain one shared fake launch counter. A
+  conservative non-idempotent policy must launch zero additional commands and
+  repeatedly return reconciliation or manual-intervention state. A retrying
+  policy must first reconcile or durably reserve a remaining attempt; repeat
+  recovery more times than the budget and assert that the shared launch count
+  never exceeds the remaining execution slots.
+- Cover both command classes. For non-idempotent work, an indeterminate result
+  must stop until reconciliation or manual intervention prevents duplicated
+  effects. For idempotent work, use a stable operation or idempotency key and
+  still consume a durably recorded execution slot for every new launch; local
+  idempotency does not turn repeated process starts into one execution.
+- Exactly-once execution of non-idempotent work cannot be inferred from a local
+  success checkpoint: interruption can occur after the external effect but
+  before that checkpoint. It requires an end-to-end idempotency or
+  reconciliation contract with the effect owner, otherwise ambiguous recovery
+  must stop.
+- Use injected launch and reconciliation fakes, or harmless commands confined
+  to a test-created temporary fixture. Keep the counter or operation ledger
+  shared across fresh runtime instances, terminate any real process, and remove
+  temporary state in `finally`.
+
 ## Process And Service Cleanup
 
 - Tests that spawn processes must wait for exit, terminate explicitly, or use a controlled fake process object.
