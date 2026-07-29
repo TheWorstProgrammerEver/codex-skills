@@ -28,6 +28,12 @@ Tests must clean up after themselves. A successful or failed test run should not
   direction allows it. When direct reuse would create an unsuitable dependency,
   add an explicit cross-schema parity test as well as the composed
   producer-to-consumer test.
+- When recovery state copies a path-bearing or otherwise security-constrained
+  value from an authoritative plan, run the same accepted and denied corpus
+  through both schemas. Prefer the same canonical validator; otherwise make
+  parity explicit and include traversal components, ambiguous separators, empty
+  components, absolutes, and normalization forms that could cross the original
+  boundary.
 - Treat a producer that can emit data rejected by its declared consumer as a
   compatibility defect even when each schema is internally valid. In review,
   request canonical constraint reuse or a composed boundary test; if divergence
@@ -113,6 +119,42 @@ At minimum, exercise this example matrix:
   exact owned temporary names for assertions and cleanup, and remove the root
   in `finally`. Never fault-test against a user, repository, or shared state
   directory.
+
+### Durable State Trust-Boundary Tests
+
+Test directory trust and serialized-value validation separately from atomicity
+and crash durability. A store passes only when all applicable contracts pass;
+a mode-`0600` destination or successful rename must not compensate for a
+failure in either trust boundary.
+
+For directory trust, exercise pre-existing components rather than testing only
+the modes used by directory-creation code:
+
+| Existing state | Required result |
+| --- | --- |
+| Private destination inside a broadly writable containing directory | Reject before cleanup, destination inspection, or replacement. |
+| Directory component owned by an untrusted identity | Reject where the platform test environment can establish a distinct owner; otherwise record this platform gap rather than silently omitting the contract. |
+| Symlink at an ancestor pointing to another test-owned directory | Reject at that ancestor and assert that no requested descendant was created in the symlink target. |
+| Trusted existing chain | Open and validate each component in order before operating on state. |
+
+- Instrument the traversal sequence as `open or create component -> validate
+  type, owner, and mode -> descend`. Assert that no child creation or state-file
+  operation occurs after the first rejected component.
+- Keep both the intended root and any symlink target under the test's isolated
+  temporary root. Capture their contents before the operation and assert the
+  target is unchanged, then remove the whole fixture in `finally`.
+- Include race-focused integration coverage for handle-relative, no-follow
+  operations when the implementation claims resistance to concurrent
+  replacement. A path-only unit mock proves validation order, not resistance to
+  check/use races.
+
+For recovery-schema parity, drive both the authoritative source validator and
+the recovery parser from one table. Include valid multi-component relatives
+and denied values such as `../outside-root`, `safe/../outside-root`,
+`safe\child`, and `safe//child`, plus any platform-specific absolute or
+normalization spellings in the source contract. Assert that every denied value
+is rejected by both boundaries, then serialize and parse at least one record
+per safety-relevant field so helper-only tests cannot hide schema drift.
 
 ## Process And Service Cleanup
 
