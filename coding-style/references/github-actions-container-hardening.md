@@ -28,16 +28,19 @@ runner command or state files.
 
 Do not respond by restoring broad authority with `--privileged`,
 `--cap-add=DAC_OVERRIDE`, a host-device mount, or a blanket permission change.
-Where the runner and image support it, run the container as the numeric owner of
-the runner mounts while retaining:
+Where the runner and image support it, run the container with the numeric UID
+that owns the runner mounts while retaining:
 
 - `--cap-drop=ALL`;
 - `--security-opt=no-new-privileges`; and
 - no `--privileged` or `--device` option.
 
-The image must also support running as that numeric user. Check executable,
-workspace, cache, package-manager, and home-directory behavior rather than
-assuming every image supports an arbitrary UID/GID.
+The command files' GID can differ from the container user's primary GID; matching
+the owner UID is sufficient when owner-write permission is present. Choose and
+validate the primary GID separately for the runner and image. The image must also
+support running as that numeric identity. Check executable, workspace, cache,
+package-manager, and home-directory behavior rather than assuming every image
+supports an arbitrary UID/GID.
 
 ## Discover The Runner Mapping
 
@@ -56,12 +59,14 @@ jobs:
     container:
       image: node:24-bookworm
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Inspect numeric command-file ownership
         shell: sh
         run: |
           id
           stat -c '%u:%g %a %n' \
+            "$GITHUB_WORKSPACE" \
+            "$RUNNER_TEMP" \
             "$(dirname "$GITHUB_OUTPUT")" \
             "$GITHUB_OUTPUT" \
             "$GITHUB_ENV" \
@@ -69,11 +74,13 @@ jobs:
             "$GITHUB_STEP_SUMMARY"
 ```
 
-Inspect metadata only; never print command-file contents. Use the consistent
-owner that has write permission on the command-file directory and files. Repeat
-the probe for every larger or self-hosted runner class and after relevant runner
-or image changes. Fail closed or keep the job unhardened and isolated when the
-mapping is inconsistent or the image cannot run as the discovered user.
+Inspect metadata only; never print command-file contents. Use the owner UID that
+has write permission on the command-file directory and files, then choose a
+compatible primary GID for the workspace and image. Do not require the container
+GID to equal every mounted path's GID. Repeat the probe for every larger or
+self-hosted runner class and after relevant runner or image changes. Fail closed
+or keep the job unhardened and isolated when the mapping is inconsistent or the
+image cannot run as the discovered identity.
 
 ## Hardened Standard-Runner Example
 
@@ -96,7 +103,9 @@ jobs:
         --cap-drop=ALL
         --security-opt=no-new-privileges
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Exercise runner command files
         id: command-files
@@ -112,10 +121,14 @@ jobs:
           test "$HARDENED_COMMAND_FILES" = verified
           test "${{ steps.command-files.outputs.verified }}" = true
           test "$(id -u):$(id -g)" = "1001:122"
-          test "$(stat -c '%u:%g' "$GITHUB_OUTPUT")" = "1001:122"
+          test "$(stat -c '%u' "$(dirname "$GITHUB_OUTPUT")")" = "1001"
+          test "$(stat -c '%u' "$GITHUB_OUTPUT")" = "1001"
           awk '
+            BEGIN { seen = 0 }
+            $1 ~ /^Cap(Inh|Prm|Eff|Bnd|Amb):$/ { seen++ }
             $1 ~ /^Cap(Inh|Prm|Eff|Bnd|Amb):$/ &&
             $2 != "0000000000000000" { exit 1 }
+            END { if (seen != 5) exit 1 }
           ' /proc/self/status
           grep -Eq '^NoNewPrivs:[[:space:]]+1$' /proc/self/status
           if find /dev -xdev -type b -print -quit | grep -q .; then
@@ -134,8 +147,12 @@ command-file output and environment propagation, dependency installation,
 build, tests, and post-job action cleanup must all pass. Confirm at runtime that
 all capability sets are zero, `NoNewPrivs` is enabled, and `/dev` contains no
 block-device nodes. Also inspect the workflow for accidental `--privileged`,
-`--device`, added capabilities, privileged commands, or destructive device
-operations.
+`--device`, added capabilities, privileged commands, host-root or device mounts,
+or destructive device operations. Pin actions to reviewed commit SHAs; pin the
+container image by digest when reproducibility matters, and re-run ownership and
+image-compatibility validation after changing a tag or digest. On self-hosted
+runners, also confirm the pinned action version supports the installed runner;
+the pinned checkout v6 example requires Actions Runner v2.329.0 or newer.
 
 If a larger or self-hosted runner needs a different mapping, keep its value
 scoped to that runner class and document the matching probe. Do not copy the
