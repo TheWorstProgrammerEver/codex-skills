@@ -121,6 +121,12 @@ no missing or extra entry, file-byte drift, mode drift, kind change, renamed
 path, or changed symlink target. Re-run the semantic entrypoint checks and
 service checks against this rescanned root.
 
+Apply the
+[filesystem bundle directory-mode policy](general-implementation.md#filesystem-bundle-directory-modes)
+before serializing directory entries. In particular, distinguish shared target
+ancestors from private runtime-owned leaves and reject a manifest that inherits
+a restrictive leaf mode onto a shared path.
+
 Only then publish with the repository's safe whole-directory replacement
 protocol. An adapter consuming the artifact must rescan it again before
 placement rather than trusting a manifest that was valid only when the producer
