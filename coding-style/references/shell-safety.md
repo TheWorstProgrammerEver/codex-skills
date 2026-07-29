@@ -15,7 +15,8 @@
 
 ## Trusted Path Boundaries
 
-- Before deriving a trusted mount, disk, or backup root, canonicalize the complete path with a platform-appropriate resolver or reject `..` and symlink components according to the script's contract.
-- Perform containment, same-disk, free-space, and destructive-operation checks against the canonical path. Verify containment by path component rather than by string prefix.
-- Use that same checked canonical value for the eventual read or write. Do not validate only the first trusted-looking component and later pass an unnormalized suffix to a destructive command.
-- Fail closed when a path cannot be resolved safely. For a destination that does not exist yet, resolve and check its existing parent before appending the final basename.
+- For privileged or destructive scripts, reject non-canonical user-supplied path components before deriving relative paths or trusted roots: internal empty segments, `.`, and `..`. A trusted-looking prefix does not make a suffix such as `/Volumes/Backup/../Other/image.dmg` safe.
+- Canonicalize every existing user-supplied source or destination path with a platform-appropriate resolver before computing containment, mount, device, free-space, or same-device guard metadata. This also resolves symlinks and mount aliases.
+- Derive guard metadata from the complete canonical path that the operation will actually read or write, not from a string prefix such as the first `/Volumes/<name>` components. Verify containment by path component rather than by string prefix.
+- Use that same checked canonical value for the eventual read or write. Fail closed when it cannot be resolved safely. For a destination that does not exist yet, canonicalize and check its existing parent before appending a separately validated basename.
+- Add targeted rejection probes for traversal and normalization cases such as `/Volumes/Backup/../Other/image.dmg`, `/Volumes/Backup/./image.dmg`, and `/Volumes/Backup//image.dmg`; include a symlink fixture when the script promises to reject or contain symlinked paths.
