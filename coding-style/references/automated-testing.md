@@ -409,6 +409,65 @@ fixtures above for every declared process-control model.
   second termination starts. Exercise the equivalent `error` boundary when
   asynchronous cleanup is part of the adapter's spawn-failure path.
 
+### Orchestration Cancellation Matrix
+
+Test the
+[orchestration cancellation contract](general-implementation.md#orchestration-cancellation-propagation)
+at every step kind that can keep the runner pending. Before entering the step
+under test, start and register a test-owned background or supervised resource;
+otherwise the regression does not prove that cancellation can escape the
+foreground wait and reach outer supervisor cleanup.
+
+At minimum, exercise this example matrix:
+
+| Active step kind | Required cancellation evidence |
+| --- | --- |
+| Automatic foreground command | The runner signal reaches the command adapter; its foreground process and descendants stop, and the earlier supervised resource is also cleaned up. |
+| Manual gate or operator-input wait | Cancellation settles the gate without an answer or fixture release, then outer cleanup stops the supervised resource. |
+| Completion probe or polling loop | Cancellation interrupts both an in-flight probe and any interval between probes; no further probe starts after abort. |
+| Sleep, delay, or retry backoff | Cancellation clears the owned timer and settles without advancing to the next step. |
+| Background-supervisor start, join, or completion wait | Partially or fully started resources are already registered, cancellation stops each one, and the join cannot keep the runner pending. |
+| Queue, lock, or resource-acquisition wait when supported | Cancellation removes the waiter or subscription and does not acquire or start work after abort. |
+
+- Use controlled fakes with explicit `entered`, `canceled`, and
+  `cleanupComplete` observations. Await `entered`, abort the one runner-owned
+  controller, and race the outer `run()` promise against an independent hard
+  deadline. Assert bounded outer settlement, not merely that an abort callback
+  ran.
+- Add an already-aborted case for every supported step kind. Assert that no
+  foreground command, manual wait, probe, timer, queue waiter, or supervised
+  resource starts. Keep this separate from the active-step cases, which must
+  start and register a supervised resource before abort.
+- For polling, abort once while the probe call is pending and once while the
+  interval timer is pending. In both cases assert that no later probe starts.
+- After both successful cancellation and injected cleanup failure, assert that
+  every test-owned process has reached the contract's terminal state, every
+  timer and poll handle is cleared, every waiter or listener is removed, and
+  every supervised cleanup promise has settled. Keep the watchdog and fixture
+  cleanup idempotent in `finally`, and clear the watchdog itself so the test
+  leaves no process, timer, listener, or unobserved promise behind.
+- With multiple supervisors, make one cleanup succeed, one report failure
+  after releasing its resource, and one require bounded escalation. Assert
+  that one rejection does not prevent every registered cleanup from being
+  attempted and awaited before the runner reports the aggregated outcome.
+- Include resistant and non-settling work. A command or supervisor that ignores
+  the graceful signal must exercise bounded escalation. Wrap a manual gate,
+  probe, or timer collaborator whose underlying work promise never settles
+  with a structured cancellation/cleanup handle. Assert that the executor
+  observes the underlying promise, invokes and awaits cleanup, and settles
+  without the test releasing that promise.
+- Make propagation failures deterministic. For each matrix row, replace or
+  mutate that executor so it ignores the runner signal while its blocking work
+  remains pending. Confirm the outer deadline fails and supervised cleanup has
+  not completed until the test's independent `finally` cleanup releases the
+  fixture. A runner test that still passes when any one active executor drops
+  cancellation does not cover the orchestration contract.
+- Keep runner propagation tests separate from the adapter-level
+  [cancellation-settlement race fixtures](#cancellation-settlement-race-fixtures).
+  The listener-registration and terminal-outcome races remain canonical in
+  [RYA-155](https://linear.app/ryan-hayward/issue/RYA-155/hive-mind-cover-subprocess-cancellation-settlement-races);
+  the matrix proves that orchestration actually reaches each adapter and wait.
+
 ## Database And Integration Cleanup
 
 - Integration tests that manipulate databases must isolate their data by transaction, schema, test database, tenant, user, or unique test prefix.

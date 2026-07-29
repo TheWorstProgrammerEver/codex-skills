@@ -283,6 +283,49 @@ ordering guarantees explicit:
   follow the deterministic race fixtures in
   [`automated-testing.md`](automated-testing.md#cancellation-settlement-race-fixtures).
 
+### Orchestration Cancellation Propagation
+
+A runner-level `AbortSignal` is not a shutdown contract unless every nested
+operation that can keep the runner pending observes the same cancellation
+source. A cancellation check after `await executor.run()` cannot help when that
+executor is blocked indefinitely.
+
+- Pass one runner-owned signal or cancellation context through every automatic
+  foreground command, manual gate, completion probe or polling loop, sleep or
+  backoff timer, queue or resource-acquisition wait, and background-supervisor
+  join. Do not substitute unrelated per-step controllers unless they are
+  explicitly linked to the runner signal.
+- Make every nested executor handle an already-aborted signal and an abort that
+  arrives after work starts. Stop accepting new work, cancel its owned
+  foreground commands, probes, timers, and descendants, and await their
+  cleanup before the executor settles. The runner must also cancel and await
+  every registered background or supervised resource from its outer cleanup
+  path, regardless of which foreground step was active.
+- Do not rely on racing a bare, cancellation-blind promise and abandoning it.
+  Potentially non-settling work needs a structured cancellation handle or an
+  adapter-owned cleanup operation that lets the orchestrator regain control,
+  bound escalation, observe the abandoned promise, and release every owned
+  resource. If an executor exposes no such control, it cannot participate in a
+  bounded shutdown contract.
+- Define a bounded settlement target for the runner and each executor cleanup.
+  Resistant foreground or supervised work must use the declared
+  platform-specific escalation mechanism; a non-settling manual, probe, or
+  timer wait must be interrupted by cancellation rather than released by test
+  or operator input.
+- Register supervised resources before advancing to the next step so an abort
+  cannot occur after launch but before ownership is recorded. Keep cleanup
+  idempotent for cancellation, ordinary failure, and partial startup. Attempt
+  every registered cleanup even when one fails, then report the aggregated
+  cleanup outcome.
+
+Exercise the step-kind matrix in
+[`automated-testing.md`](automated-testing.md#orchestration-cancellation-matrix).
+This is an orchestration propagation requirement. Keep the adapter-level
+precheck, listener-registration, outcome-freezing, and cleanup races canonical
+in [RYA-155](https://linear.app/ryan-hayward/issue/RYA-155/hive-mind-cover-subprocess-cancellation-settlement-races)
+and the [cancellation-settlement fixtures](automated-testing.md#cancellation-settlement-race-fixtures)
+rather than duplicating them in runner tests.
+
 ## Completion Checks
 
 - Re-scan touched files for responsibility creep before finishing.
