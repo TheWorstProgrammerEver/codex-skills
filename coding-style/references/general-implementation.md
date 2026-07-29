@@ -82,6 +82,53 @@ in [RYA-158](https://linear.app/ryan-hayward/issue/RYA-158/hive-mind-verify-dire
 the trust checks below are independent requirements, not substitutes for that
 durability protocol.
 
+## Safe Whole-Directory Replacement
+
+Treat replacement of a generated directory as a separate protocol from atomic
+single-file replacement. The file protocol above covers one temporary file,
+one destination entry, and recovery of its containing-directory sync. A
+directory replacement must durably build a complete tree and preserve the
+previous tree across two promotion renames.
+
+- Resolve and validate the requested output before allocating temporary state.
+  Reject filesystem roots, empty or current-directory targets, and configured
+  user, workspace, or other broad destructive roots. Require a specific output
+  leaf beneath a validated existing parent, and apply the
+  [directory-chain trust checks](#durable-state-directory-trust) before
+  inspection, cleanup, or rename.
+- Refuse an existing output by default. When replacement is explicitly
+  requested, accept only a real directory that is recognizable as this tool's
+  output through stable markers and required structure. Reject a symlink,
+  special file, unrelated directory, or partial lookalike before moving or
+  deleting anything.
+- Allocate recognizable, exclusive staging and backup siblings under the
+  output's validated parent so every promotion rename stays on the destination
+  filesystem. Write only into staging. Sync each file and every created
+  directory from the leaves through the staging root before promotion.
+- Keep the prior output intact until staging is complete. For replacement, move
+  the prior output to the owned backup, promote staging to the requested output,
+  and sync the parent directory. Remove the backup only after promotion has
+  succeeded; when crash durability is promised, sync the parent again after
+  backup removal.
+- On a pre-commit failure, or when promotion fails and rollback restores the
+  prior output, remove the operation-owned staging and any unused backup
+  artifact. Never broaden cleanup to names that are merely prefix-matched or
+  otherwise not proven to belong to this operation.
+- Treat failed rollback as a distinct recovery result. If another entry has
+  appeared at the requested output or restoring the backup otherwise fails,
+  do not delete that entry to force the rename and do not remove the backup in
+  unconditional cleanup. Preserve the sole recoverable prior tree and return a
+  structured recovery locator proven to name the generated backup directly
+  beneath the validated parent.
+- Keep recovery diagnostics bounded and redacted. Use a generic message and the
+  validated operation-owned sibling locator; do not append raw exception text,
+  candidate file contents, credentials, or arbitrary attacker-controlled paths.
+
+Use the deterministic scenarios in
+[`automated-testing.md`](automated-testing.md#whole-directory-replacement-tests).
+Centralize the protocol in one replacement helper rather than duplicating
+rename and cleanup sequences across callers.
+
 ## Durable State Directory Trust
 
 A private destination file and an atomic replacement protocol do not make its

@@ -120,6 +120,50 @@ At minimum, exercise this example matrix:
   in `finally`. Never fault-test against a user, repository, or shared state
   directory.
 
+### Whole-Directory Replacement Tests
+
+Test the
+[whole-directory replacement protocol](general-implementation.md#safe-whole-directory-replacement)
+with deterministic hooks or injectable filesystem operations at staging,
+promotion, and rollback boundaries. Do not reuse the single-file atomic-write
+matrix as proof that a complete directory tree and its prior version remain
+recoverable.
+
+At minimum, exercise this example matrix:
+
+| Scenario | Required evidence |
+| --- | --- |
+| New output | The complete staged tree is promoted, every required file and created directory was synced, and no staging or backup sibling remains. |
+| Existing recognizable output without explicit replacement | The operation refuses before staging; the prior tree is byte-for-byte intact. |
+| Existing unrelated directory, partial lookalike, symlink, or broad target such as a filesystem or workspace root | Replacement is refused even when a force/replace option is present; no entry is moved, removed, or created. |
+| Failure before commit | The requested output stays absent, or the prior output stays unchanged; owned staging residue is removed. |
+| Promotion failure with successful rollback | The exact prior tree is restored at the requested output; owned staging and unused backup artifacts are removed. |
+| Promotion failure with failed rollback | The exact prior tree remains at the reported backup locator, staging is removed, and the backup is retained as the sole recovery copy. |
+| Successful explicit replacement | The candidate becomes the requested output only after complete staging; the old backup and staging sibling are removed. |
+
+- Snapshot or hash the prior tree, including expected modes and nested entries,
+  before replacement. Recheck that snapshot after every denied or failed
+  scenario so a passing error assertion cannot hide prior-output damage.
+- Make the rollback-failure regression deterministic: after the prior output
+  has moved to backup, recreate the requested output as a non-empty directory
+  containing an interloper, then fail candidate promotion. Require the restore
+  rename to fail without deleting or changing the interloper. Assert that
+  staging is gone, exactly the expected operation-owned backup remains, and its
+  contents match the prior snapshot.
+- Assert that the rollback-failure error exposes only a structured locator
+  bounded to the validated parent and generated backup entry. Its user-facing
+  message must not include raw filesystem exception text, fixture contents,
+  secrets, or attacker-controlled path text.
+- Record the sync and rename sequence. Require all staged files and directories
+  to be synced before the prior output moves, then require
+  `output -> backup`, `staging -> output`, and parent sync in order. If backup
+  removal is part of a crash-durable success contract, require the final parent
+  sync too.
+- Keep the fixture under one test-created temporary root. Preserve a failed
+  rollback backup until its recovery assertions finish, then remove the whole
+  root in the outer `finally`; an unconditional operation-level cleanup that
+  deletes that backup is the regression under test.
+
 ### Durable State Trust-Boundary Tests
 
 Test directory trust and serialized-value validation separately from atomicity
