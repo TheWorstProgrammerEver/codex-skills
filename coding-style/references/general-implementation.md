@@ -221,6 +221,42 @@ Use the mutation matrix in
 - Keep public implementation wording aligned with the adapter that actually runs. If lifecycle requirements replace `exec` with `spawn(..., { shell: true })`, describe a spawn-based shell adapter rather than claiming the implementation uses `exec`; distinguish a public operation named `exec` from the underlying Node.js primitive when both concepts appear.
 - Require review evidence to map each advertised platform to its termination mechanism and lifecycle validation, or to show the matching metadata, documentation, and runtime exclusion. The reviewer should not need source-task history to determine which contract applies.
 
+### Stable Recovery Process Identity
+
+A retained current-child handle is an in-process capability: use its lifecycle
+events and cancellation method while the owning runner remains alive. After a
+runner crash, that handle is gone. A persisted numeric PID or a successful
+`kill(pid, 0)` probe is not an equivalent adoption capability because Linux can
+reuse the PID and the probe also succeeds for an unreaped zombie.
+
+- On Linux, launch a recoverable process as the leader of a new, isolated
+  process group and persist a boot-scoped identity containing the boot ID, PID,
+  process-group ID, and `/proc/<pid>/stat` start-time ticks. Require the recorded
+  process-group ID to equal the leader PID; do not adopt or group-signal a
+  process that joined a shared or unrelated group.
+- For same-boot adoption, read the current state and compare every tuple field.
+  Treat an absent entry or a leader in zombie or dead state as exited rather
+  than live. Keep the detailed cleanup-test predicates canonical in
+  [RYA-157](https://linear.app/ryan-hayward/issue/RYA-157/hive-mind-distinguish-live-descendants-from-unreaped-zombies-in)
+  and the
+  [bounded lifecycle tests](automated-testing.md#bounded-subprocess-lifecycle-tests);
+  recovery identity is the additional ownership decision.
+- Distinguish observations from authority. PID-only and process-group existence
+  probes can support waiting or diagnostics, but they cannot authorize
+  adoption, cleanup, duplicate suppression, or a signal after interruption.
+  A boot-ID mismatch is prior-boot state; a start-time or process-group mismatch
+  is a different same-boot process.
+- Re-read and compare the complete identity immediately before a recovered
+  group-directed signal, with the check and signal kept in one narrow adapter.
+  Signal only the recorded isolated group when that fresh comparison succeeds;
+  otherwise fail closed or tear down a separately proven enclosing isolation
+  boundary. Repeat the ownership check before escalation. If the recorded
+  leader has exited, do not treat its stale group number as authority: require
+  stable ownership evidence for the remaining targets or decline the signal.
+
+Use the deterministic scenarios in
+[`automated-testing.md`](automated-testing.md#recovery-process-identity-tests).
+
 ### Cancellation Settlement
 
 For a bounded subprocess adapter that accepts an `AbortSignal`, keep these
