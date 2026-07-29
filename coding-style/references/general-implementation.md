@@ -323,6 +323,62 @@ established inside the intended root.
 Use the denied scenarios in
 [`automated-testing.md`](automated-testing.md#durable-state-trust-boundary-tests).
 
+## Identity-Safe Stale File-Lock Takeover
+
+Treat stale recovery as a lock-state transition, not as cleanup of an old
+pathname. This sequence is unsafe:
+
+```text
+read owner A -> decide A is stale -> unlink lock path -> acquire
+```
+
+Two recoverers can both observe A. The first can unlink A and acquire as B
+before the second performs its delayed unlink; that unlink then removes B's
+live lock and lets the second recoverer acquire as C. Both callers can enter the
+critical section before either releases.
+
+- Give every acquisition a unique, unguessable nonce and the stable owner
+  identity required by the platform. Publish a complete identity atomically:
+  write and sync a unique adjacent candidate before using an exclusive create,
+  hard link, or equivalent atomic absent-to-held transition. Do not expose a
+  zero-byte or partial primary lock that could mean either live initialization
+  or abandoned crash residue.
+- Bind the identity that was observed stale to the takeover operation. Use a
+  platform primitive that atomically compares and removes or replaces that
+  exact generation, a kernel-managed lock whose ownership disappears on
+  process or handle death, or a separately serialized recovery protocol. A
+  pathname rename or unlink is not identity-bound merely because it is atomic:
+  after a delayed call, the pathname may name a newer holder.
+- In a serialized recovery protocol, acquire the recovery coordinator first,
+  then re-read the primary lock and revalidate its complete identity and
+  liveness inside that exclusion boundary immediately before removal. Hold the
+  coordinator through removal and the atomic primary-lock acquisition, or
+  through a settled failed attempt. If the identity changed or is now live, do
+  not mutate it. All takeover paths must honor the same coordinator; otherwise
+  an uncoordinated remover preserves the race.
+- Prefer a crash-released kernel coordinator or no persistent auxiliary lock.
+  If recovery uses a file lease, make that lease obey this same complete
+  publication, stable-identity, conditional-release, and identity-safe stale
+  takeover protocol. Recover finite chains of abandoned recovery leases using
+  the caller's original absolute deadline; recursion must not reset or extend
+  the timeout. Clean only exact protocol-owned candidates and lease paths after
+  their identities are proven.
+- Release the primary or recovery lease only when its current complete identity
+  still contains the releasing acquisition's nonce. A delayed release after
+  ownership loss must leave the replacement holder untouched. Keep the nonce
+  check and unlink in the narrow ownership adapter; the protocol's exclusion
+  guarantees must make replacement between them impossible.
+
+Do not use age or a numeric PID alone as stale-owner authority. Apply
+[RYA-168](https://linear.app/ryan-hayward/issue/RYA-168/hive-mind-verify-stable-process-identity-before-recovery-signaling)
+for stable post-crash process identity and PID-reuse decisions. For verified
+resumable artifact-cache state and per-content lock scope, apply
+[RYA-175](https://linear.app/ryan-hayward/issue/RYA-175/hive-mind-add-verified-resumable-artifact-cache-guidance)
+rather than duplicating that acquisition protocol here.
+
+Use the simultaneous-recoverer and crash-residue scenarios in
+[`automated-testing.md`](automated-testing.md#stale-file-lock-takeover-tests).
+
 ## Recovery Validation Boundaries
 
 A strict field schema proves only that each serialized value has the expected
