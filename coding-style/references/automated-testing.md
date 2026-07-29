@@ -275,6 +275,52 @@ normalization spellings in the source contract. Assert that every denied value
 is rejected by both boundaries, then serialize and parse at least one record
 per safety-relevant field so helper-only tests cannot hide schema drift.
 
+### Stale File-Lock Takeover Tests
+
+Test the
+[identity-safe stale-takeover protocol](general-implementation.md#identity-safe-stale-file-lock-takeover)
+with deterministic barriers around observation, takeover, acquisition, entry,
+and release. A test in which each caller acquires and releases before the next
+one enters does not exercise mutual exclusion during recovery.
+
+For the central regression, seed one stale identity A and start two or more
+recoverers. Hold every caller after it has observed A. Then let one caller
+remove A, acquire as B, and enter while its release remains gated. Resume the
+other caller's stale-removal path and assert that it does not remove B, resolve
+its acquisition, or enter until B is explicitly released. Temporarily replace
+the identity-safe takeover with the original check-then-unlink behavior and
+confirm that this same fixture admits both holders before either release; do not
+accept a race test that never fails against the unsafe implementation.
+
+At minimum, exercise this matrix:
+
+| Scenario | Required evidence |
+| --- | --- |
+| Live owner | Age, PID-only probes, timeout, and waiting recoverers do not remove or replace the lock; at most one holder has entered. |
+| Stale owner | One recoverer takes over the exact dead generation and makes progress; exact protocol-owned residue is cleaned. |
+| PID reuse or changed stable identity | The candidate is not classified as the recorded owner; takeover follows the [RYA-168 stable-identity contract](https://linear.app/ryan-hayward/issue/RYA-168/hive-mind-verify-stable-process-identity-before-recovery-signaling) without duplicating its process matrix. |
+| Simultaneous stale recovery | With every contender observing the same stale generation, exactly one acquisition resolves and enters before the release gate opens; all others remain pending or return the documented bounded result. |
+| Replacement after observation | Replace A with a fresh identity B at the pre-removal hook. The delayed recoverer leaves B byte-for-byte and identity-for-identity unchanged. |
+| Release after ownership loss | Invoke A's delayed release after the path names B. The nonce mismatch prevents unlink, and B remains the only holder. |
+| Empty or partial primary state | A live initializer never publishes it. Seeded crash residue is therefore unambiguously recoverable without timeout or concurrent entry. |
+| Abandoned recovery coordinator | Seed a dead primary and a dead auxiliary lease, including a finite nested chain when the protocol permits one. Acquisition succeeds under the original deadline, admits one holder, and cleans exact primary, coordinator, nested, and candidate residue. |
+
+- Record acquisition identities, entry count, release state, and filesystem
+  mutations. Assert mutual exclusion at the moment the first holder is inside
+  the critical section, before triggering any release; checking only final
+  cleanup can miss a double-holder interval.
+- Use injected identity/liveness readers and filesystem-operation hooks for
+  deterministic ordering. Keep a bounded stress probe with several contenders
+  and many iterations as supplemental coverage, but do not make scheduler luck
+  the sole regression oracle.
+- Verify that every retry and recursive recovery step receives one shared
+  monotonic deadline. Advance a fake clock while traversing abandoned
+  coordinators and assert that no nested acquisition obtains a fresh timeout.
+- Allocate primary locks, recovery coordinators, adjacent candidates, and any
+  outside swap targets beneath one test-created temporary root. Gate releases
+  in `try`/`finally`, settle all contenders, and remove the root even when the
+  mutual-exclusion assertion fails.
+
 ### Recovery Semantic-Invariant Tests
 
 Start with serialized checkpoints that the transition API can produce, then
