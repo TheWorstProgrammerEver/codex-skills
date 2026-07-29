@@ -120,6 +120,71 @@ At minimum, exercise this example matrix:
   in `finally`. Never fault-test against a user, repository, or shared state
   directory.
 
+### Transactional Sensitive-File Migration Tests
+
+Test the
+[sensitive-file migration protocol](general-implementation.md#transactional-sensitive-file-migration)
+with deterministic hooks around every durable effect. Construct a fresh
+transaction object against the same isolated fixture after each injected
+interruption. Use generated non-secret marker bytes in memory; do not put
+credential-like values, secret derivatives, private paths, or host facts in
+fixtures, checkpoints, logs, or assertions.
+
+Inject immediately before and after every `prepared`, `installed`,
+`source-removed`, and `committed` checkpoint, and on both sides of publication
+rename, destination-directory sync, source unlink, and source-directory sync.
+At minimum, prove this matrix:
+
+| Interrupted boundary | Required recovery evidence |
+| --- | --- |
+| Temporary creation or copy before `prepared` | The source remains intact; recovery removes only the exact recorded operation-owned plaintext temporary, syncs its directory, and preserves near-match files. |
+| After `prepared`, before publication rename | The verified prepared temporary can be resumed; the source remains intact and no destination is accepted as installed. |
+| After rename, before destination-directory sync | The destination may be visible and the temporary name absent, but recovery syncs the destination directory and repeats destination metadata and content verification before `installed`. |
+| After destination sync, on either side of `installed` | Recovery accepts installation only after proving the durable destination invariant; the source is never unlinked without a durable `installed` checkpoint. |
+| On either side of source unlink | Before unlink, source identity and content still match the opened source and installed destination. After unlink, recovery never deletes another entry or recreates plaintext from checkpoint data. |
+| After unlink, before source-directory sync | Recovery syncs the source directory before recording durable removal or commit. A missing source pathname alone is not durable-unlink evidence. |
+| After source sync, on either side of `source-removed` | Recovery proves the installed object and durably absent source, then advances without republishing or broad cleanup. |
+| On either side of `committed` | Recovery never copies, renames, or unlinks secret material again; any transaction-record cleanup preserves the committed data invariants. |
+
+- Record the complete order: reserve transaction identity and exact temp leaf;
+  create and verify temp; durably record its non-secret identity; write,
+  metadata-update, verify, and sync temp; `prepared`; publish;
+  destination-directory sync; verify destination; `installed`; revalidate and
+  compare source; unlink source; source-directory sync; `source-removed`;
+  `committed`. Assert that moving any checkpoint earlier fails the test.
+- Seed a leftover exact generated temp and several near-matches, including a
+  longer suffix, shorter prefix, different transaction identifier, symlink,
+  hardlink, directory, and special file where the platform safely supports it.
+  Recovery must remove only the exact regular file whose recorded identity and
+  ownership match the transaction. It must fail closed on an identity mismatch,
+  preserve every other entry, and sync after an actual removal.
+- After initial validation but before each containment-sensitive read,
+  ownership or mode change, publication, verification, cleanup, and unlink,
+  replace the pathname of a source or destination ancestor with a symlink to a
+  separate test-owned outside tree. Also swap the source, temporary, and
+  destination leaf entries with symlinks or different regular files at hooks
+  between validation and mutation. Assert either fail-closed rejection or
+  continued operation on the pinned verified object, and prove every outside
+  file is byte-for-byte and metadata-for-metadata unchanged.
+- Make the swap tests exercise the real descriptor-relative or equivalent
+  platform adapter. A pathname-only mock that reports another successful
+  `lstat` does not test the race. When a platform cannot condition mutation on
+  the verified mutable leaf, require the implementation to reject that threat
+  model or establish a non-attacker-writable boundary; do not weaken the
+  expected result to “the final path looked valid.”
+- Cover a source symlink, destination symlink, special file, and source or
+  destination with link count greater than one. Reject each before copying or
+  unlinking. After every denied, interrupted, or recovered scenario, assert the
+  source/destination copy invariant, exact checkpoint phase, absence of
+  unowned cleanup, and no leaked temporary fixture.
+- Inspect the serialized transaction structurally. Permit only constrained
+  recovery metadata and phase values; assert that marker bytes and direct or
+  unkeyed derived fingerprints are absent. Keep semantic phase mutations in
+  [Recovery Semantic-Invariant Tests](#recovery-semantic-invariant-tests) and
+  generalized secret-bearing schema cases in
+  [Structural Secret Exclusion](#structural-secret-exclusion) rather than
+  duplicating those matrices here.
+
 ### Whole-Directory Replacement Tests
 
 Test the
