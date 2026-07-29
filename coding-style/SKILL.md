@@ -11,7 +11,7 @@ Use this skill as shared engineering taste for software work. Let the target rep
 
 Read only the files needed for the current task:
 
-- `references/general-implementation.md`: implementation, refactoring, file organization, helper extraction, type placement, file-size signals, duplication, large query/prompt/template strings, and host-neutral reusable content.
+- `references/general-implementation.md`: implementation, refactoring, file organization, helper extraction, type placement, file-size signals, duplication, large query/prompt/template strings, host-neutral reusable content, and external CLI contracts.
 - `references/automated-testing.md`: writing, fixing, or reviewing tests; especially cleanup for files, processes, services, timers, and process-wide state.
 - `references/preferred-tech-stacks.md`: choosing default platforms, dependencies, hosting, frontend, backend, mobile, cloud, deployment, environment strategy, and environment setup documentation.
 - `references/accessibility.md`: UI accessibility expectations, light/dark mode, semantic controls, animation preferences, WCAG checks, and web AOM inspection.
