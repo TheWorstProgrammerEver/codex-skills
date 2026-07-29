@@ -83,6 +83,33 @@ comm -13 /tmp/project-before.txt /tmp/project-after.txt
 
 The final `comm` output should be empty.
 
+### Filesystem Bundle Directory-Mode Tests
+
+Test the
+[filesystem bundle directory-mode policy](general-implementation.md#filesystem-bundle-directory-modes)
+from both an empty staging root and a realistic pre-populated target. Leaf-only
+assertions can pass while a generated manifest still carries destructive modes
+for shared ancestors.
+
+At minimum, exercise this matrix:
+
+| Scenario | Required evidence |
+| --- | --- |
+| Empty staged root | Build private `/var/lib/my-app` and `/run/my-app` leaves from no pre-existing directories. Assert the complete set of generated directory paths and modes: both leaves are `0700`, while `/var`, `/var/lib`, and `/run` are either omitted from the placement manifest or recorded with the fixture's explicit shared policy, never inherited `0700`. |
+| Existing shared target | Seed `/var`, `/var/lib`, and `/run` as mode `0755`, plus an unrelated entry under a shared ancestor. Apply the generated placement artifact and assert that shared ancestor modes and the unrelated entry are byte-for-byte and metadata-for-metadata unchanged while the private leaves are installed as `0700`. |
+| Restrictive ancestor mutation | Replace the safe component-wise fixture operation with recursive creation using leaf mode `0700`, or inject a `0700` shared-ancestor manifest entry. Require the manifest assertion or placement preflight to fail before any target mode changes. |
+
+- Read modes from the completed staged tree and serialized manifest rather than
+  asserting only calls to a directory helper. Compare the exact normalized
+  manifest entry set so an unexpected ancestor cannot hide behind correct leaf
+  assertions.
+- Snapshot the pre-populated target's relevant kinds, modes, and contents before
+  placement and compare them afterward. A successful installer return value is
+  not proof that unrelated shared metadata was preserved.
+- Keep both roots beneath one test-created temporary directory, use explicit
+  fixture modes instead of host directory metadata, and remove the fixture in
+  `finally`.
+
 ### Atomic File Durability Tests
 
 Test a reboot-safe atomic replacement as an ordered persistence protocol, not

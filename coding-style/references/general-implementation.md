@@ -294,6 +294,38 @@ Use the deterministic scenarios in
 Centralize the protocol in one replacement helper rather than duplicating
 rename and cleanup sequences across callers.
 
+## Filesystem Bundle Directory Modes
+
+Treat every directory recorded by an image, package, archive, deployment bundle,
+or placement manifest as an installation effect. A staging-only ancestor can
+become a target `chmod` when an adapter replays the manifest, so a correct
+private leaf mode is not enough.
+
+- Separate shared namespace ancestors from application-owned leaves. Create or
+  verify shared ancestors under their platform policy, then create the private
+  leaf with its own exact mode. For example, `/var`, `/var/lib`, and `/run` are
+  shared ancestors; `/var/lib/my-app` and `/run/my-app` can be
+  application-owned leaves with mode `0700`.
+- Do not pass a private leaf mode to one recursive directory-creation call when
+  multiple components may be absent. Some filesystem APIs apply that mode to
+  every directory they create, which can make a fresh staging root represent
+  `/var`, `/var/lib`, and `/run` as `0700`.
+- Give every generated directory entry an explicit ownership and mode policy
+  before serialization. Do not infer an ancestor's installation mode from a
+  descendant. Omit shared ancestors from the placement manifest when the
+  consumer does not own them; when the format requires them, record their
+  explicit shared policy rather than whatever mode happened to exist in
+  staging.
+- Make placement non-destructive for shared ancestors. An adapter must not
+  replay private leaf metadata onto an existing shared directory or normalize
+  unrelated shared paths as a side effect of installing one application.
+  Validate the complete manifest before applying any mode change.
+
+Use the empty-root and existing-shared-root scenarios in
+[`automated-testing.md`](automated-testing.md#filesystem-bundle-directory-mode-tests).
+Keep crash-durable creation and directory-chain trust as separate contracts;
+correct installation modes do not substitute for either.
+
 ## Durable State Directory Trust
 
 A private destination file and an atomic replacement protocol do not make its
