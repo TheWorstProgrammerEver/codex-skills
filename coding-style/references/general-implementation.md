@@ -77,7 +77,58 @@ Follow the failure-injection scenarios in
 [`automated-testing.md`](automated-testing.md#atomic-file-durability-tests).
 If a target platform or filesystem cannot provide the required file or
 directory sync primitive, narrow the persistence contract rather than claiming
-reboot-safe atomic replacement.
+reboot-safe atomic replacement. Keep rename and directory-sync recovery details
+in [RYA-158](https://linear.app/ryan-hayward/issue/RYA-158/hive-mind-verify-directory-durability-on-atomic-write-recovery);
+the trust checks below are independent requirements, not substitutes for that
+durability protocol.
+
+## Durable State Directory Trust
+
+A private destination file and an atomic replacement protocol do not make its
+containing directory trustworthy. Before cleanup, inspection, recovery, or
+replacement, fail closed unless the full directory chain is securely
+established inside the intended root.
+
+- Validate pre-existing components as rigorously as newly created ones. Require
+  real directories rather than symlinks, the expected trusted owner, and a
+  permission policy that excludes untrusted write access. Applying a private
+  mode during creation says nothing about a directory that already existed.
+- Traverse component by component: securely open or create one child, validate
+  that component before descending through it, and only then open or create the
+  next child. Validating a completed chain after recursive creation is too late;
+  an untrusted symlinked ancestor may already have redirected descendant
+  creation outside the intended root.
+- Bind validation and use to directory handles with no-follow, relative
+  operations where the platform supports them. A path-based check followed by
+  a separate cleanup, open, or rename can be raced. When the runtime cannot
+  provide the primitives needed for the promised attacker model, narrow the
+  trust contract explicitly.
+- Do not read, remove residue, chmod, or replace state through an unsafe
+  component merely because the final file is owned by the expected user and
+  mode `0600`. Any repair flow must first establish that it is operating on the
+  intended directory entry without following an untrusted redirect.
+
+Use the denied scenarios in
+[`automated-testing.md`](automated-testing.md#durable-state-trust-boundary-tests).
+
+## Recovery Schema Boundary Preservation
+
+Serialized recovery state must preserve the safety constraints of the
+authoritative plan or command it resumes. A second validator with a similar
+name, such as "relative path," is not evidence that both boundaries accept the
+same language.
+
+- Reuse the canonical boundary validator for copied values whenever dependency
+  direction permits. This includes its rejection of traversal components,
+  ambiguous separators, empty components, absolutes, and normalization forms;
+  do not reproduce only the happy-path shape in the recovery schema.
+- If canonical reuse would create an unsuitable dependency, require an
+  explicit parity test that sends the same accepted and denied corpus through
+  both validators. Also parse the exact serialized recovery record so the test
+  covers the real deserialization boundary rather than helper functions alone.
+- Treat validator drift as a trust-boundary defect even when the recovery file
+  itself has private permissions and a trusted location. Safe storage does not
+  make an unsafe serialized path or identifier safe to execute.
 
 ## External CLI Contracts
 
