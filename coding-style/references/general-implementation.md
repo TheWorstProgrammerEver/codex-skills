@@ -82,6 +82,103 @@ in [RYA-158](https://linear.app/ryan-hayward/issue/RYA-158/hive-mind-verify-dire
 the trust checks below are independent requirements, not substitutes for that
 durability protocol.
 
+## Transactional Sensitive-File Migration
+
+Treat a move from bootstrap or staging storage into durable protected storage as
+a transaction, not as copy followed by cleanup. The transaction must establish
+four separate properties:
+
+| Property | Required evidence |
+| --- | --- |
+| Secure containment | Every traversed component and leaf is the intended type and identity inside a trusted boundary; no untrusted directory-entry substitution can redirect a read or privileged mutation. |
+| Durable publication | The complete destination has the required private ownership and mode, its file is synced, publication is atomic, and the destination directory is synced. |
+| Durable unlink | The verified source entry is unlinked and its containing directory is synced. |
+| Physical secure erase | A separate storage-specific sanitization contract removes recoverable physical remnants. Ordinary unlink does not provide this property. |
+
+Use this ordered protocol:
+
+1. Open trusted source and destination roots, traverse component by component,
+   and retain the verified directory and file descriptors. Reject symlinks,
+   special files, unexpected owners or modes, and—when the contract requires
+   single-file custody—any source, temporary, or destination regular file whose
+   link count is not one. Apply the
+   [durable-state directory trust rules](#durable-state-directory-trust).
+2. Durably reserve an opaque transaction identifier and the exact generated
+   temporary leaf before writing secret bytes. Create that private temporary
+   file exclusively in the destination directory, verify its identity, and
+   durably add that non-secret identity to the transaction record before
+   copying. Copy from the already-open source, set ownership and mode through
+   the open file descriptor, verify the result, sync it, and then persist the
+   `prepared` checkpoint.
+3. Atomically rename the exact prepared temporary entry within the verified
+   destination directory, sync that directory, reopen the destination relative
+   to its retained descriptor, and verify regular-file type, single-link
+   custody, content, ownership, and mode. Only then persist the `installed`
+   checkpoint. Reuse the
+   [crash-durable atomic-file protocol](#crash-durable-atomic-file-replacement)
+   for file and directory sync semantics.
+4. Before unlinking, revalidate that the source directory entry still names the
+   opened source object, require the source's custody metadata to remain valid,
+   and compare the installed destination with that source through their open
+   descriptors. Require a durable `installed` checkpoint before unlink. Remove
+   the source relative to its verified directory descriptor, sync the source
+   directory, and only then persist `source-removed`.
+5. Persist `committed` only after recovery can prove the installed destination
+   and durable source-entry removal. Transaction-record removal, when required,
+   is a later atomic metadata update and must not weaken those invariants.
+
+Make every phase checkpoint an atomic, crash-durable state transition. Persist
+only the opaque operation identity, exact operation-owned temporary name,
+constrained locators or non-secret file identity needed for recovery, expected
+ownership and mode, and phase. Never persist source bytes, destination bytes,
+content-derived values, or an unkeyed digest that makes a low-entropy secret
+brute-forceable. Follow the
+[recovery validation boundaries](#recovery-validation-boundaries) for legal
+phase relationships and the
+[structural secret-exclusion rules](automated-testing.md#structural-secret-exclusion)
+for the serialized contract.
+
+Keep traversal, reads, metadata mutation, publication, verification, unlink,
+cleanup, and both directory syncs relative to retained trusted descriptors or
+an equivalent race-safe capability. A successful `lstat` followed by
+pathname-based `chown`, `chmod`, `rename`, or `unlink` only repeats a check; an
+attacker can replace an ancestor or leaf entry after that check and before the
+mutation. Descriptor-relative ancestry prevents re-resolution through a
+substituted parent, but it does not by itself pin a mutable leaf. If an
+untrusted actor can write the verified directory, require a primitive or
+exclusion boundary that conditionally consumes the verified leaf identity;
+otherwise narrow the attacker and platform contract instead of claiming
+race-safe custody.
+
+Recovery must re-establish invariants rather than trust either visible files or
+the checkpoint alone:
+
+- At `prepared` or earlier, preserve the source. Resume publication only from
+  the exact verified prepared entry; remove partial or abandoned plaintext
+  temporaries only when their full generated name and identity belong to the
+  recorded transaction, then sync the destination directory. Preserve every
+  near-match or unrecognized file.
+- At `installed`, reverify the destination before source removal. If the source
+  still exists, repeat the identity and live content comparison before unlink.
+  If interruption occurred after unlink, use the durable `installed` transition
+  and the protected destination identity to reconcile the absent source, sync
+  the source directory, and advance; stop for manual reconciliation if the
+  destination can no longer be proven to be the installed object.
+- At `source-removed`, require the destination invariant and a durably absent
+  source entry before committing. Never recreate secret material from
+  checkpoint data, and never delete the only remaining valid copy to repair an
+  ambiguous phase.
+
+Unlink removes one directory entry. Even after the source-directory sync, data
+may remain in another hardlink, filesystem journal, snapshot, copy-on-write
+extent, device remapping layer, or flash cell. Rejecting hardlinks enforces the
+transaction's custody precondition; it does not turn unlink into physical
+erasure. Specify encrypted-storage key destruction or an appropriate
+media-sanitization procedure separately when physical erasure is required.
+
+Use the interruption and swap scenarios in
+[`automated-testing.md`](automated-testing.md#transactional-sensitive-file-migration-tests).
+
 ## Safe Whole-Directory Replacement
 
 Treat replacement of a generated directory as a separate protocol from atomic
