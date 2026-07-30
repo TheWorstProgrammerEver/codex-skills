@@ -794,6 +794,43 @@ Enumerate at least these ordered crash windows:
   shared across fresh runtime instances, terminate any real process, and remove
   temporary state in `finally`.
 
+### Persisted Clock-Stability Tests
+
+Test the
+[stable-clock scope contract](general-implementation.md#stable-clock-scope-across-executions)
+at the serialized observation boundary, not only as arithmetic in one runtime.
+Use a temporary state file and launch the production scheduler entry point or a
+minimal fixture as two real process invocations. Configure a short skew
+tolerance, wait longer than that tolerance between invocations, and assert that
+a normal same-boot interval remains stable because wall and boot-scoped elapsed
+time agree. The test must fail if the persisted boot reading is replaced with a
+fresh process-local counter such as `process.uptime()`.
+
+Keep real process boundaries for the normal-interval regression, then inject
+clock and boot-identity readers for the policy matrix:
+
+| Scenario | Required result |
+| --- | --- |
+| Separate invocations, same boot, normal elapsed time greater than the skew tolerance | Stable: wall and boot-scoped deltas agree within tolerance even though the absolute elapsed interval exceeds it. |
+| Same boot, wall-clock rollback while the boot-scoped counter advances | Unstable and fail closed; do not overwrite the last accepted observation with the rejected reading. |
+| Same boot, forward or backward wall divergence beyond tolerance | Unstable and fail closed under the same published policy. |
+| Boot ID changes | Do not compare boot-counter deltas across the reboot; exercise the declared fail-closed, manual-reconciliation, or safely rebaselined result. |
+| Boot ID is unchanged but wall synchronization is absent or indeterminate | Follow the synchronization policy independently of the boot match. |
+
+- Persist and parse the complete `{ wall, bootMonotonic, bootId }` observation in
+  each process so an in-memory fake cannot hide a serialization, unit, or field
+  mapping defect. Assert that every accepted update is coherent and every
+  rejected case preserves the prior trusted state.
+- Mutation-check clock scope: swap the boot-scoped reader for a process-scoped
+  reader whose value restarts in the second child. The normal-interval case
+  must reject that implementation, while the correct boot-scoped source
+  remains stable.
+- Use fakes for rollback, large jumps, synchronization state, and boot-ID
+  changes; tests must not change the host clock or wait for a reboot. Use
+  placeholder boot identities rather than copying a local machine identifier.
+- Keep the tolerance and wait small but separated by a scheduling margin, add
+  an independent watchdog, and remove the temporary state in `finally`.
+
 ## Process And Service Cleanup
 
 - Tests that spawn processes must wait for exit, terminate explicitly, or use a controlled fake process object.
@@ -888,7 +925,10 @@ and deterministic coordination fixtures below.
   and did settle within its timeout plus termination-grace bound. Keep this
   expected deadline shorter than the independent watchdog deadline so a
   regression fails promptly while the watchdog and `finally` path still prevent
-  leaked processes and temporary files.
+  leaked processes and temporary files. This is a process-lifetime measurement;
+  never persist that reading for a later invocation. Follow
+  [Stable Clock Scope Across Executions](general-implementation.md#stable-clock-scope-across-executions)
+  when a clock observation crosses a process boundary.
 
 #### Recovery Process Identity Tests
 

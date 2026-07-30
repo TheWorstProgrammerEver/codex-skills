@@ -550,6 +550,49 @@ shape. Review durable recovery as three separate validation layers:
 Use the mutation matrix in
 [`automated-testing.md`](automated-testing.md#recovery-semantic-invariant-tests).
 
+## Stable Clock Scope Across Executions
+
+Label every monotonic source by the lifetime over which its readings can be
+compared:
+
+| Scope | Valid comparison boundary | Examples and required identity |
+| --- | --- | --- |
+| Process | One process lifetime only | Node.js `process.uptime()` restarts with a new process. High-resolution APIs whose public contract does not define a cross-process epoch also remain process-scoped even when one runtime happens to use a wider-scope platform counter. Never persist their readings for comparison by a later invocation. |
+| Boot | Separate processes during one operating-system boot | Linux `CLOCK_BOOTTIME` and `/proc/uptime` reset at reboot. Persist the boot ID with every reading and compare readings only when the current boot ID matches. |
+| Machine | Across process and boot boundaries only when an explicit platform service provides that contract | Persist the source identity or epoch and define reset, replacement, rollover, and restore behavior. Do not infer machine scope from a clock being monotonic inside one boot. |
+
+For persisted cross-invocation clock-stability decisions, store the wall-clock
+reading, a boot-scoped monotonic reading, and the boot ID as one observation.
+On the same boot, compare wall elapsed time with boot-scoped elapsed time and
+apply the configured divergence tolerance. A systemd oneshot, timer, cron job,
+or other fresh process must not substitute `process.uptime()` or another
+process-scoped value: its near-zero restart makes ordinary elapsed wall time
+look like skew after the first invocation.
+
+Choose boot-clock semantics deliberately. Linux `CLOCK_BOOTTIME` includes
+suspend time while `CLOCK_MONOTONIC` does not; use the source whose suspend
+behavior matches the wall-elapsed policy and document it. A boot ID proves only
+that two readings belong to the same boot. It does not prove that wall time is
+synchronized, accurate, or safe for an authorization or recovery decision.
+
+Define reboot and wall-clock synchronization as separate transitions:
+
+- When the boot ID changes, do not subtract the old and new boot-scoped
+  readings. Apply an explicit reboot policy: fail closed, require manual
+  reconciliation, or establish a new baseline only after the operation's
+  safety conditions are revalidated.
+- Define how startup learns that wall time is synchronized enough to establish
+  that baseline. Boot identity alone is not synchronization evidence, and
+  same-boot wall rollback or excess divergence must still follow the declared
+  fail-closed or recovery policy.
+- Keep observation capture and state publication coherent. If a concurrent
+  invocation can race the writer, serialize the transition or use a
+  generation-aware atomic update so a valid clock source does not mask stale
+  state.
+
+Use the separate-process and injected-clock matrix in
+[`automated-testing.md`](automated-testing.md#persisted-clock-stability-tests).
+
 ## External CLI Contracts
 
 - Treat an external CLI's accepted arguments as a versioned integration contract. When implementing or reviewing code that launches a CLI, verify the exact subcommand against the target environment's current `--help` output or current official documentation; support on a parent command, sibling subcommand, or older release is not sufficient evidence.

@@ -36,6 +36,13 @@ review priorities and review-response style.
   [Ambiguous In-Flight Retry-Budget Tests](automated-testing.md#ambiguous-in-flight-retry-budget-tests)
   that recovery cannot replay one `started` attempt indefinitely under an
   unchanged budget.
+- For persisted clock observations, identify whether every monotonic source is
+  process-, boot-, or machine-scoped. Reject process-scoped readings compared
+  across invocations; require boot-scoped readings to carry a boot ID, with
+  reboot behavior and wall-clock synchronization reviewed separately. Follow
+  [Stable Clock Scope Across Executions](general-implementation.md#stable-clock-scope-across-executions)
+  and require the
+  [Persisted Clock-Stability Tests](automated-testing.md#persisted-clock-stability-tests).
 - For staged workflows that hydrate secret-bearing prompts or payloads, require
   readiness code to accept only non-secret descriptors and narrowly scoped
   authentication capabilities, and require readiness subprocesses to receive
