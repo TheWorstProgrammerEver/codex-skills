@@ -1057,6 +1057,22 @@ At minimum, exercise this example matrix:
   separately requires prompt bytes. A runtime spy proves observed ordering;
   the API-shape test prevents a refactor from making already-hydrated bytes
   available to preflight.
+- Exercise the production spawn adapter with a real fake-child sentinel and
+  the explicit environment boundary required by
+  [Readiness-Gated Secret Hydration](general-implementation.md#readiness-gated-secret-hydration).
+  Plant distinct placeholder values in the parent process for every permitted
+  startup, authentication-location, and target-provider authentication
+  variable, plus a forbidden service credential, workload configuration,
+  other-provider credential, and arbitrary unrelated variable. Have the child
+  report the keys and placeholder values it can observe. Assert exact
+  preservation of the allowlisted set and absence of every forbidden key and
+  value; a test that inspects only the constructed environment object does not
+  prove what the spawned process received.
+- Use placeholders such as `EXAMPLE_ALLOWED_PROVIDER_AUTH`,
+  `EXAMPLE_DENIED_SERVICE_AUTH`, and `EXAMPLE_DENIED_UNRELATED_VALUE`, never
+  credential-shaped data copied from a host. Capture every process-wide
+  environment value before mutation and restore presence, absence, and value
+  in `finally`, even when spawn or assertions fail.
 - Use generated placeholder markers, never real secrets. Make a readiness fake
   throw or emit a marker, then assert the stable result, logs, checkpoints, and
   diagnostics contain neither that raw marker nor the prompt marker. Also

@@ -38,8 +38,12 @@ review priorities and review-response style.
   unchanged budget.
 - For staged workflows that hydrate secret-bearing prompts or payloads, require
   readiness code to accept only non-secret descriptors and narrowly scoped
-  authentication capabilities. Prefer a type or capability boundary over a
-  call-order convention, and verify every failure and retry path with
+  authentication capabilities, and require readiness subprocesses to receive
+  an explicit minimal environment instead of the parent service environment.
+  Follow the canonical
+  [Readiness-Gated Secret Hydration](general-implementation.md#readiness-gated-secret-hydration)
+  boundary rather than duplicating it here, and verify every failure, retry,
+  and child-environment path with
   [Readiness-Gated Secret Hydration Tests](automated-testing.md#readiness-gated-secret-hydration-tests).
 - For systemd-backed interactive services, review stdin, stdout, and stderr
   destinations independently and follow

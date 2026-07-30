@@ -172,6 +172,24 @@ diagnostic, including install and authentication failures: return stable stage
 or error codes, and do not include raw exceptions, subprocess output,
 credentials, hydrated content, or attacker-controlled configuration text.
 
+When readiness launches a subprocess, construct an explicit minimal child
+environment as a second boundary; a readiness-only input schema and a read-only
+sandbox do not remove variables inherited from the parent worker or service.
+Derive the allowlist from the supported target CLI and platform contract.
+Include only the process-startup inputs, authentication-location inputs, and
+authentication inputs that the readiness operation requires. Do not copy a
+general parent environment or accept an arbitrary environment map through the
+readiness descriptor.
+
+Keep the target provider's required authentication inputs separate from
+unrelated service, workload, and provider credentials. For example, a
+readiness child authenticating to one provider may need that provider's
+profile location and credential, but it must not inherit the parent systemd
+worker's orchestration credential, workload configuration, or credentials for
+another provider. If the target CLI cannot operate from a minimal environment,
+expose a narrowly scoped launcher or environment capability that owns the
+documented exception instead of broadening every readiness child.
+
 The same pattern applies outside interactive providers. A deployment workflow,
 for example, can validate the client installation, required version, selected
 account, and authenticated session from non-secret metadata; only after those
