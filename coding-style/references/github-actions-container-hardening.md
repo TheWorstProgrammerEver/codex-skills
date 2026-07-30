@@ -10,6 +10,7 @@ paths. Do not duplicate those rules in individual workflows.
 
 - [Runner Command-File Mounts](#runner-command-file-mounts)
 - [Discover The Runner Mapping](#discover-the-runner-mapping)
+- [Engine Socket Accessibility](#engine-socket-accessibility)
 - [Hardened Standard-Runner Example](#hardened-standard-runner-example)
 
 ## Runner Command-File Mounts
@@ -82,6 +83,36 @@ self-hosted runner class and after relevant runner or image changes. Fail closed
 or keep the job unhardened and isolated when the mapping is inconsistent or the
 image cannot run as the discovered identity.
 
+## Engine Socket Accessibility
+
+Treat engine-socket presence, usable socket access, block-device nodes, and
+Linux capabilities as four separate runtime properties. A hosted runner can
+bind-mount a Docker or Podman socket into a job container even when the workflow
+uses `--cap-drop=ALL`, `--security-opt=no-new-privileges`, and no `--device` or
+`--privileged` option. An inaccessible socket does not weaken those controls,
+while a writable socket can let the job ask the host engine to create a more
+privileged container and bypass the intended boundary.
+
+Enumerate engine-socket paths from the exact runner's configuration, environment,
+and bind mounts. Do not assume that one path is universal or that every engine
+socket is below `/var/run`; rootless engines and self-hosted runners commonly
+use different locations. For each socket that is present, test read and write
+permission as the hardened container identity. An absent candidate is acceptable,
+but absence is not a portable hosted-runner invariant.
+
+Choose the primary GID and any `--group-add` supplemental GIDs only after
+checking the socket's numeric ownership and mode. A GID chosen for workspace or
+image compatibility must not accidentally match an engine-socket group and
+grant access. Verify the effective group set with `id -G` at runtime instead of
+reasoning from the requested primary GID alone.
+
+On a self-hosted runner, socket ownership, modes, paths, and bind mounts are
+operator-controlled and can differ between runner classes. If engine access is
+deliberate, document that broader trust boundary, scope the job to an appropriate
+dedicated runner, and test that access explicitly; do not describe the job as
+isolated from the host engine. Otherwise, fail when any configured engine socket
+is readable or writable.
+
 ## Hardened Standard-Runner Example
 
 The following `1001:122` mapping was observed for one standard
@@ -123,6 +154,23 @@ jobs:
           test "$(id -u):$(id -g)" = "1001:122"
           test "$(stat -c '%u' "$(dirname "$GITHUB_OUTPUT")")" = "1001"
           test "$(stat -c '%u' "$GITHUB_OUTPUT")" = "1001"
+          for engine_socket in \
+            /var/run/docker.sock \
+            /run/docker.sock \
+            /run/podman/podman.sock
+          do
+            if [ -S "$engine_socket" ]; then
+              stat -c '%u:%g %a %n' "$engine_socket"
+              if [ -r "$engine_socket" ]; then
+                echo "Engine socket is unexpectedly readable: $engine_socket" >&2
+                exit 1
+              fi
+              if [ -w "$engine_socket" ]; then
+                echo "Engine socket is unexpectedly writable: $engine_socket" >&2
+                exit 1
+              fi
+            fi
+          done
           awk '
             BEGIN { seen = 0 }
             $1 ~ /^Cap(Inh|Prm|Eff|Bnd|Amb):$/ { seen++ }
@@ -142,17 +190,23 @@ jobs:
       - run: npm test
 ```
 
+The socket candidates in this example cover common Docker and rootful Podman
+locations; they are not an exhaustive or portable list. Replace or extend them
+from the target runner's configuration and bind mounts.
+
 Validate the complete workflow, not only the container startup. Checkout,
 command-file output and environment propagation, dependency installation,
-build, tests, and post-job action cleanup must all pass. Confirm at runtime that
-all capability sets are zero, `NoNewPrivs` is enabled, and `/dev` contains no
-block-device nodes. Also inspect the workflow for accidental `--privileged`,
-`--device`, added capabilities, privileged commands, host-root or device mounts,
-or destructive device operations. Pin actions to reviewed commit SHAs; pin the
-container image by digest when reproducibility matters, and re-run ownership and
-image-compatibility validation after changing a tag or digest. On self-hosted
-runners, also confirm the pinned action version supports the installed runner;
-the pinned checkout v6 example requires Actions Runner v2.329.0 or newer.
+build, tests, and post-job action cleanup must all pass. Confirm independently
+at runtime that configured engine sockets are inaccessible, all capability sets
+are zero, `NoNewPrivs` is enabled, and `/dev` contains no block-device nodes.
+Also inspect the workflow for accidental `--privileged`, `--device`, added
+capabilities, privileged commands, host-root or device mounts, engine-socket
+access, or destructive device operations. Pin actions to reviewed commit SHAs;
+pin the container image by digest when reproducibility matters, and re-run
+ownership, socket-access, and image-compatibility validation after changing a
+tag or digest. On self-hosted runners, also confirm the pinned action version
+supports the installed runner; the pinned checkout v6 example requires Actions
+Runner v2.329.0 or newer.
 
 If a larger or self-hosted runner needs a different mapping, keep its value
 scoped to that runner class and document the matching probe. Do not copy the
