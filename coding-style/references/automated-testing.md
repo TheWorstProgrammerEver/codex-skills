@@ -225,6 +225,36 @@ the fixture must be refreshed.
   is intentional, require an explicit versioned transformation and tests for
   that behavior.
 
+### Codex Structured Error Projection Tests
+
+For a Codex wrapper or authorization-adjacent consumer that depends on an error
+class, test the exact production projection and adapter:
+
+- Generate or load the app-server schema for the installed target version.
+  Assert structurally that the error payload exposes `codexErrorInfo` and that
+  every relied-on discriminator, such as `usageLimitExceeded`, remains in its
+  declared enum. Do not substitute a handwritten interface or a message fixture
+  for this schema-drift check.
+- Feed an exact app-server wire event with an allowlisted discriminator through
+  the production adapter and authorization boundary. Assert the expected
+  internal discriminated type, producer kind, and contract version, then prove
+  the intended effect adapter runs only for that typed evidence.
+- Use a message-only `codex exec --json` error and failed-turn fixture as
+  negative controls, including text identical to a real usage-limit message.
+  Also cover absent, null, unknown, and malformed `codexErrorInfo`. Every case
+  must produce indeterminate, non-authoritative evidence and must not call the
+  reset, billing, retry, or other effect adapter.
+- Mutation-check the downgrade boundary: remove or rename
+  `codexErrorInfo`, replace the structured event with the exec JSONL projection,
+  and alter the relied-on enum member in the schema fixture. At least one
+  focused test must fail before any effect for each mutation. Build expected
+  discriminators independently from the adapter so the same mapping defect
+  cannot change both sides of the assertion.
+
+Keep message, details, stderr, exit-status, and timing assertions separate from
+the authorization oracle. The negative controls should remain denied even when
+those free-form signals look exactly like the positive case.
+
 ## TypeScript Workspace Validation
 
 When adding or changing cross-workspace imports, run a clean-artifact check if

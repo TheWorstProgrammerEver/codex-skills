@@ -557,6 +557,51 @@ Use the mutation matrix in
 - For wrappers around `codex exec`, inspect `codex exec --help` and exercise the wrapper-shaped arguments, including the production stdin mode, against the installed target CLI before claiming the live path works.
 - Treat stdin as part of a `codex exec` wrapper's prompt contract. When the complete prompt is already positional, close or ignore child stdin before waiting; do not inherit an accidentally open descriptor or leave the default pipe open, because the CLI can treat it as additional prompt input and wait for EOF. When the wrapper intentionally appends prompt input through stdin, make that streaming mode explicit and close the stream immediately after the final byte. Apply the focused EOF and streaming fixtures in [`automated-testing.md`](automated-testing.md#codex-exec-stdin-contract-tests).
 
+### Codex Structured Error Projections
+
+Treat each Codex event projection as a separate versioned contract. Verify the
+exact producer, adapter, serialized event, and consumer used in production; a
+structured field in the upstream app-server protocol is not evidence that
+`codex exec --json`, a log formatter, or another narrower projection preserves
+it.
+
+The evidence snapshot for Codex CLI 0.146.0 illustrates the boundary:
+
+- `codex app-server generate-json-schema --out <dir>` generates
+  `v2/ErrorNotification.json`, where `error` references `TurnError`;
+  `TurnError` requires `message`, exposes optional `codexErrorInfo`, and the
+  `CodexErrorInfo` enum includes the camel-cased string
+  `usageLimitExceeded`. The official app-server contract likewise documents
+  `error: { message, codexErrorInfo?, additionalDetails? }` for mid-turn and
+  terminal failures, including the usage-limit class
+  ([app-server error contract](https://github.com/openai/codex/blob/6219b7c40fc9c702c0aef9964e72b492558f60e4/codex-rs/app-server/README.md#L1551-L1572);
+  [protocol enum](https://github.com/openai/codex/blob/6219b7c40fc9c702c0aef9964e72b492558f60e4/codex-rs/app-server-protocol/src/protocol/v2/shared.rs#L64-L75)).
+- The `codex exec --json` event model instead defines `ThreadErrorEvent` with
+  only `message`
+  ([exec event type](https://github.com/openai/codex/blob/6219b7c40fc9c702c0aef9964e72b492558f60e4/codex-rs/exec/src/exec_events.rs#L90-L94)).
+  Its app-server projection constructs that message-only type for both
+  `ServerNotification::Error`
+  ([mid-turn projection](https://github.com/openai/codex/blob/6219b7c40fc9c702c0aef9964e72b492558f60e4/codex-rs/exec/src/event_processor_with_jsonl_output.rs#L435-L445))
+  and failed turns
+  ([terminal projection](https://github.com/openai/codex/blob/6219b7c40fc9c702c0aef9964e72b492558f60e4/codex-rs/exec/src/event_processor_with_jsonl_output.rs#L526-L544)).
+  Its JSONL error message is therefore not equivalent structured evidence.
+
+When reset, billing, retry, account-state, or other high-consequence behavior
+requires a Codex error class, consume the app-server event directly or use an
+app-server-aware adapter that validates `codexErrorInfo` and maps an allowlisted
+variant to an internal discriminated type. Keep producer kind and contract
+version with that evidence so a downstream authorization check cannot confuse
+it with exec JSONL, stderr, or a human-facing log.
+
+Fail closed when the structured discriminator is absent, null, unknown,
+malformed, or lost during projection. Treat that result as indeterminate and
+withhold the high-consequence action; do not upgrade it from `message`,
+`additionalDetails`, stderr, exit status, or timing. Free-form matching may
+support presentation or operator diagnostics, but it must never authorize a
+reset, billing transition, retry, or equivalent effect. Apply the focused
+contract and downgrade tests in
+[`automated-testing.md`](automated-testing.md#codex-structured-error-projection-tests).
+
 ## Subprocess Platform Contracts
 
 - Treat timeout, cancellation, escalation, and descendant cleanup guarantees as platform-specific compatibility contracts. Before implementing or reviewing a subprocess adapter, identify every operating-system family advertised by its package or release metadata and public documentation.
