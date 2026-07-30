@@ -536,7 +536,8 @@ Use the mutation matrix in
 
 - Treat an external CLI's accepted arguments as a versioned integration contract. When implementing or reviewing code that launches a CLI, verify the exact subcommand against the target environment's current `--help` output or current official documentation; support on a parent command, sibling subcommand, or older release is not sufficient evidence.
 - Keep mocked process tests for fast coverage, but do not use them alone to claim a live runner works. When the live path is part of the completion claim, run a narrow contract check or dry run against the target binary using the exact generated argument list. Prefer a check that reaches argument parsing without causing external side effects; otherwise use an isolated integration test and state the unverified boundary.
-- For wrappers around `codex exec`, inspect `codex exec --help` and exercise the wrapper-shaped arguments against the installed target CLI before claiming the live path works.
+- For wrappers around `codex exec`, inspect `codex exec --help` and exercise the wrapper-shaped arguments, including the production stdin mode, against the installed target CLI before claiming the live path works.
+- Treat stdin as part of a `codex exec` wrapper's prompt contract. When the complete prompt is already positional, close or ignore child stdin before waiting; do not inherit an accidentally open descriptor or leave the default pipe open, because the CLI can treat it as additional prompt input and wait for EOF. When the wrapper intentionally appends prompt input through stdin, make that streaming mode explicit and close the stream immediately after the final byte. Apply the focused EOF and streaming fixtures in [`automated-testing.md`](automated-testing.md#codex-exec-stdin-contract-tests).
 
 ## Subprocess Platform Contracts
 
