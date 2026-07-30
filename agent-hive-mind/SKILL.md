@@ -51,6 +51,74 @@ Do not create an epiphany issue when:
 
 When in doubt, prefer a short note in the current task summary over creating noisy collective backlog.
 
+## Canonical Linear Classification
+
+Every collective-learning proposal created through this skill must carry the
+exact Linear label `type:hive-mind`. Apply it as issue metadata at creation
+time, not merely as text in the description. This label is the authoritative,
+machine-queryable classification for discovery, routing, deduplication, and
+audits.
+
+Use `[Hive Mind] <concise proposal>` as the human-readable title convention.
+Keep the label if the title later changes or uses another product-area prefix;
+the title is not a source of truth.
+
+Apply `type:hive-mind` only when the Candidate Test passes and the issue proposes
+a change to one of the collective sources in Target Choice. A product issue
+does not receive the label merely because it uses the Issue Template, contains
+a reusable learning, or mentions a shared source. If product implementation and
+collective learning are both needed, keep the product issue unclassified and
+create a separate classified proposal when the Candidate Test warrants it.
+
+Before creating an issue:
+
+1. Resolve the exact `type:hive-mind` label in the selected Linear team or
+   workspace and include it in the create request with the model and reasoning
+   labels.
+2. If the label is missing and workspace policy permits label creation, create
+   it with the description `Canonical classification for collective-learning
+   proposals that target shared agent knowledge.` Otherwise, stop and request
+   the missing classification instead of creating an unlabeled proposal.
+3. Re-fetch the created issue and verify that `type:hive-mind` is present.
+
+## Discovery, Audit, And Legacy Migration
+
+Use the narrow label query as the normal discovery path:
+
+```text
+team = <relevant team>
+label = type:hive-mind
+includeArchived = false
+```
+
+For the open proposal set, retain results whose Linear status type is not
+completed, canceled, or duplicate. Use the unfiltered classified set when
+checking history or deduplicating a new learning. Do not OR title prefixes,
+template headings, or description keywords into the authoritative query; a
+non-`[Hive Mind]` title with the label must be found, while an identically
+structured product issue without the label must be excluded.
+
+Use title and template searches only for drift detection and one-time legacy
+migration. Make a migration deterministic by recording a cutoff and a reviewed
+identifier set:
+
+1. Seed candidates with issues created before the cutoff whose titles start
+   with `[Hive Mind]`.
+2. Add explicit legacy identifiers from the reviewed source audit, including
+   proposals that used a product-area title.
+3. Verify each candidate still satisfies the Candidate Test and targets one of
+   the collective sources in Target Choice. Record explicit product-issue
+   exclusions; template shape alone never authorizes classification.
+4. Apply `type:hive-mind` to every confirmed proposal while preserving its
+   other labels. Include completed, canceled, and duplicate proposals so the
+   classified history is complete for deduplication, not only the open backlog.
+   Then re-run the unfiltered label query and reconcile the exact identifier
+   set with the migration record.
+
+After migration, report any `[Hive Mind]` title without the label as drift to
+reconcile, regardless of status. A labeled issue without that title prefix
+remains discoverable and is not, by itself, a classification defect.
+
 ## Linear Issue Rules
 
 For a useful generalized learning, create a Linear issue with these defaults:
@@ -58,10 +126,18 @@ For a useful generalized learning, create a Linear issue with these defaults:
 - Team: the relevant team for the work.
 - Status: `Backlog`, not `Waiting For Agent`.
 - Assignee: none, unless the user explicitly requests assignment.
-- Labels: include the appropriate model label, typically `agent:model:gpt-5.5`, plus a reasoning label that matches the implementation complexity, such as `agent:reasoning:low`, `agent:reasoning:medium`, `agent:reasoning:high`, or `agent:reasoning:xhigh`.
+- Labels: include the required `type:hive-mind` classification, the appropriate
+  model label, typically `agent:model:gpt-5.5`, plus a reasoning label that
+  matches the implementation complexity, such as `agent:reasoning:low`,
+  `agent:reasoning:medium`, `agent:reasoning:high`, or
+  `agent:reasoning:xhigh`.
 - Links: include source task, PR, incident, file, issue, or discussion links when available.
 
-Use existing labels when they exist. If a required model or reasoning label is missing, follow the workspace convention for creating labels only when the user or repo workflow permits it; otherwise mention the missing label in the issue body.
+Use existing labels when they exist. If a required model or reasoning label is
+missing, follow the workspace convention for creating labels only when the user
+or repo workflow permits it; otherwise mention the missing label in the issue
+body. The canonical `type:hive-mind` classification must not be replaced by a
+description mention.
 
 ## Issue Template
 
@@ -103,5 +179,6 @@ Describe the new, updated, or deleted skill/note/guidance item.
 At the end of substantial work, make an explicit call:
 
 - No issue: state briefly that no broadly reusable collective learning was found.
-- Issue needed: create the Linear `Backlog` issue using the template, unassigned by default, with model and reasoning labels.
+- Issue needed: create the Linear `Backlog` issue using the template, unassigned
+  by default, with `type:hive-mind`, model, and reasoning labels.
 - Local-only learning: update the narrowest local durable note instead of opening shared collective backlog.
