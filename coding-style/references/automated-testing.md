@@ -774,6 +774,30 @@ Enumerate at least these ordered crash windows:
   `isatty` scenarios in
   [`systemd-interactive-descriptors.md`](systemd-interactive-descriptors.md#descriptor-routing-tests).
 
+### Codex Exec Stdin Contract Tests
+
+- For a wrapper that supplies the complete `codex exec` prompt positionally,
+  inject a helper executable whose child immediately reads stdin to EOF before
+  emitting an observation. Invoke it through the wrapper's real spawn adapter
+  and production stdio configuration. Assert that it observes zero input and
+  EOF within a short monotonic bound, without the test closing the stream after
+  launch. A test that calls `child.stdin.end()` itself can mask the wrapper
+  defect it is meant to catch.
+- Add an independent watchdog and idempotent `finally` cleanup. As a negative
+  control, replace the wrapper's closed or ignored stdin with an open pipe and
+  prove that the helper cannot emit the EOF observation until cleanup closes
+  that exact pipe. This demonstrates that the regression test fails for the
+  original waiting behavior instead of passing for an unrelated fast exit.
+- Test an intentional streaming contract separately: send the expected
+  appended prompt bytes, explicitly end stdin immediately after the final
+  write, and assert that the helper observes the exact bytes followed by EOF.
+  Do not apply the zero-input assertion to a wrapper whose documented contract
+  intentionally streams stdin.
+- Retain a separate narrow smoke against the installed `codex exec` binary
+  using the wrapper's exact generated argument list and stdin mode. The helper
+  fixture proves EOF ownership deterministically; it does not prove that the
+  target CLI version accepts the generated arguments.
+
 ### Bounded Subprocess Lifecycle Tests
 
 Timeout errors and direct-child exit are not proof that a bounded subprocess
