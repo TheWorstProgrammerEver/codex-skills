@@ -109,13 +109,15 @@ identifier set:
 3. Verify each candidate still satisfies the Candidate Test and targets one of
    the collective sources in Target Choice. Record explicit product-issue
    exclusions; template shape alone never authorizes classification.
-4. Apply `type:hive-mind` to every confirmed open proposal while preserving its
-   other labels, then re-run the label query and reconcile the exact identifier
+4. Apply `type:hive-mind` to every confirmed proposal while preserving its
+   other labels. Include completed, canceled, and duplicate proposals so the
+   classified history is complete for deduplication, not only the open backlog.
+   Then re-run the unfiltered label query and reconcile the exact identifier
    set with the migration record.
 
-After migration, report an open `[Hive Mind]` title without the label as drift
-to reconcile. A labeled issue without that title prefix remains discoverable
-and is not, by itself, a classification defect.
+After migration, report any `[Hive Mind]` title without the label as drift to
+reconcile, regardless of status. A labeled issue without that title prefix
+remains discoverable and is not, by itself, a classification defect.
 
 ## Linear Issue Rules
 
