@@ -841,6 +841,24 @@ clock and boot-identity readers for the policy matrix:
   `isatty` scenarios in
   [`systemd-interactive-descriptors.md`](systemd-interactive-descriptors.md#descriptor-routing-tests).
 
+### Hardened System Unit Namespace Tests
+
+A packaged system unit that combines `User=` with `ProtectHome=`,
+`ProtectSystem=`, `ReadWritePaths=`, `BindPaths=`, or related mount-namespace
+directives needs both isolated static verification and a final target-compatible
+manager start that constructs its runtime namespace. `systemd-analyze verify`
+proves syntax and selected dependencies; it does not prove service-user path
+specifier expansion, path availability, or mount-namespace construction.
+
+Keep routine fixtures non-privileged and run the installed-unit exercise only in
+an explicitly scoped integration environment with prevalidated cleanup. Include
+a regression that contrasts a home-relative system-manager specifier with the
+supported explicit or systemd-managed path and fails when the start ends in
+`226/NAMESPACE` before the probe runs. The canonical system-unit boundary,
+diagnostic handling, scenario matrix, and user-manager exclusion live in
+[Exercise Hardened System Units At Runtime](packaged-runtime-verification.md#exercise-hardened-system-units-at-runtime);
+do not duplicate them in project-specific test guidance.
+
 ### Codex Exec Stdin Contract Tests
 
 - For a wrapper that supplies the complete `codex exec` prompt positionally,
