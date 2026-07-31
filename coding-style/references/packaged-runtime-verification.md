@@ -13,6 +13,7 @@ checks that make the runtime usable by its target service.
 - [Enforce Entrypoint Semantics](#enforce-entrypoint-semantics)
 - [Build And Rescan The Placement Artifact](#build-and-rescan-the-placement-artifact)
 - [Verify Service Assets In An Isolated Root](#verify-service-assets-in-an-isolated-root)
+- [Exercise Hardened System Units At Runtime](#exercise-hardened-system-units-at-runtime)
 - [Test Every Boundary](#test-every-boundary)
 - [Related Guidance](#related-guidance)
 
@@ -159,6 +160,60 @@ it does not install, enable, or start the service. Routine validation must not
 copy into the live system root, invoke `systemctl`, start a service, require
 privilege, mount devices, or mutate host service state.
 
+## Exercise Hardened System Units At Runtime
+
+Before claiming installation readiness for a packaged system unit that combines
+`User=` with mount-namespace directives such as `ProtectHome=`,
+`ProtectSystem=`, `ReadWritePaths=`, or `BindPaths=`, exercise the exact
+installed unit on the target system manager. An equivalent transient exercise
+is acceptable only when it preserves the manager type, service account,
+namespace directives, resolved paths, and path existence and ownership
+conditions of the installed unit. Direct execution as the service account does
+not construct the unit's mount namespace and is not equivalent evidence.
+
+For a system unit, `%h` denotes the home directory of the account running the
+system manager, normally `/root`; systemd explicitly does not derive it from
+the unit's `User=` account. Changing the credentials used for `ExecStart` does
+not redefine that specifier. This boundary is specific to system units and must
+not be generalized to units run by a per-user manager.
+
+When a service needs a literal path beneath its configured account home, render
+an explicit absolute path from a validated account or installation contract
+into the installed unit or drop-in, or use a root-owned alias whose target is
+validated by that contract. Test the exact installed artifact and resolved
+target. If the data does not need to remain home-relative, prefer a
+systemd-managed `StateDirectory=`, `CacheDirectory=`, `LogsDirectory=`, or
+`RuntimeDirectory=` as appropriate. Rely on another specifier or indirection
+only after the target manager version and runtime start prove its expansion for
+that unit.
+
+Keep static verification and runtime namespace construction as separate gates:
+
+1. Parse the staged unit and run `systemd-analyze verify` against the disposable
+   root when available.
+2. Install the exact candidate without enabling unrelated scheduling, reload
+   the target system manager, and use a side-effect-free probe or disposable
+   fixture configuration.
+3. Start the unit through that manager. Prove that `ExecStart` was reached with
+   the configured service identity and that the required namespace path is
+   writable or readable as promised.
+4. Stop and remove test-owned state through a prevalidated cleanup path.
+
+An exit report of `226/NAMESPACE` means systemd failed while constructing a
+mount, UTS, or IPC namespace before `ExecStart`. For a unit with filesystem
+sandboxing, inspect the privileged unit status and journal for the exact
+rejected path and directive; application logging and entrypoint debugging are
+downstream until namespace construction succeeds. Keep privileged journal
+output out of ordinary test artifacts, and record only bounded, non-sensitive
+evidence.
+
+Use this focused regression scenario:
+
+| Candidate system unit | Static gate | Runtime namespace gate |
+| --- | --- | --- |
+| `User=example-service`, account home `/srv/example-service-home`, `ProtectHome=read-only`, `ProtectSystem=strict`, and `ReadWritePaths=%h/.example` | Syntax and dependency verification may pass. It does not prove that `%h` follows `User=`. | The system-manager start must fail the test if `%h` resolves outside the configured account home; `226/NAMESPACE` and the bounded rejected-path evidence prove `ExecStart` was not reached. |
+| The same fixture with an installer-rendered `ReadWritePaths=/srv/example-service-home/.example`, or a suitable systemd-managed directory when home-relative storage is unnecessary | Static verification still passes. | The real or equivalent manager start reaches the probe under `example-service` and proves the promised access. Mutating the fixture back to `%h` must make this gate fail. |
+
 ## Test Every Boundary
 
 Keep routine tests download-free, non-privileged, and confined to a
@@ -197,9 +252,13 @@ Keep two validation stages distinct:
    and service-definition verification without executing foreign target code.
 2. Before claiming installation readiness, execute every generated command or
    service entrypoint through its staged or installed pathname on the actual
-   target or under a target-compatible emulator, using the
+   target or under a target-compatible emulator. For a hardened system unit,
+   include the
+   [runtime namespace exercise](#exercise-hardened-system-units-at-runtime);
+   for other entrypoints, use the
    [final-path launcher smoke tests](automated-testing.md#final-path-launcher-smoke-tests).
 
-Static verification does not prove module, interpreter, working-directory, or
-relative-resource resolution at startup; target-compatible execution does not
-replace the static gates.
+Static verification does not prove runtime specifier expansion, mount-namespace
+construction, module, interpreter, working-directory, or relative-resource
+resolution at startup; target-compatible execution does not replace the static
+gates.
