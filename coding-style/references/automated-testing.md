@@ -1053,6 +1053,46 @@ At minimum, exercise this example matrix:
 - Aggressively assert denied access as well as allowed access, especially for cross-user, cross-tenant, role, ownership, and unauthenticated scenarios.
 - For Supabase apps, cover Row Level Security policies and semantic Edge Function command/query authorization paths.
 
+### Paginated Authorization Evidence Tests
+
+For each collection whose absence can authorize an effect, exercise the
+production pagination adapter, authorization boundary, and a recording effect
+spy together. Handing the policy function an already-complete array does not
+test whether the real reader silently truncated its evidence.
+
+At minimum, exercise this matrix with a documented page size such as 50:
+
+| Scenario | Required result |
+| --- | --- |
+| Empty terminal page | The negative predicate may pass only when authoritative metadata marks the collection complete. |
+| Exactly 50 allow-side records and `hasNextPage: false` | The predicate may pass after validating the terminal metadata; page length alone neither invents nor suppresses another request. |
+| More than one page with no deny record | Every page is fetched once in cursor order, and the effect runs only after the authoritative terminal page. |
+| A decisive deny or blocker as record 51 | The second page is fetched, the predicate denies, and the protected effect is never called. Temporarily stop after the first page and require this regression to fail. |
+| `hasNextPage: true` with a missing or unusable cursor | The result is indeterminate and fails closed before the effect. |
+| Repeated cursor, cursor cycle, or unique pages exceeding the configured page or record bound | Loop protection stops traversal, reports incomplete evidence, and does not reinterpret the bound as exhaustion. |
+| Transport error, timeout, or cancellation after one or more allow-side pages | Partial results are discarded as authorization evidence; no allow decision is published, cached, or sent to the effect. |
+| Malformed or contradictory pagination metadata | The adapter rejects the response as incomplete before authorization or effect execution. |
+
+- Assert the exact requested cursors and page count as well as the policy
+  result. Include the empty, exact-boundary, multi-page allow, and second-page
+  deny cases so an implementation cannot pass by fetching either zero pages,
+  only one page, or one unnecessary page.
+- Set a small test-only page or record bound and feed distinct cursors past it;
+  separately feed a repeated cursor. Both must settle within an independent
+  watchdog and produce the same fail-closed incomplete classification without
+  calling the effect.
+- Inject failure after the first response and before the next response settles.
+  Assert that no partial allow-side aggregate or cached `complete` marker
+  survives for a retry. A later successful retry must traverse from a valid
+  starting state and reach terminal evidence before the effect can run.
+- Keep presentation tests separate. A deliberately truncated display response
+  may render with a visible truncation label, but passing that response into the
+  authorization boundary must be structurally impossible or explicitly
+  rejected.
+
+Follow the implementation contract in
+[`general-implementation.md`](general-implementation.md#complete-evidence-for-negative-authorization-predicates).
+
 ### File URL To Native Path Boundaries
 
 - Treat URL-syntax validation and decoded native-path validation as separate

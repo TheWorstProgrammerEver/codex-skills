@@ -83,6 +83,43 @@ values. Prove the scan boundary with two controls: a planted visitor-facing
 violation must fail, while an internal fixture may retain clearly labelled,
 non-secret provenance without entering the visitor scan.
 
+## Complete Evidence For Negative Authorization Predicates
+
+A negative authorization predicate permits an effect because no disqualifying
+record exists. Inventory every collection whose apparent absence contributes
+to that decision, including blockers, denials, grants, memberships, approvals,
+and ownership records. A returned page is not the collection: no matching item
+in the first or current page is not evidence that no matching item exists.
+
+- Permit the protected effect only after complete pagination to an
+  authoritative terminal page, an authoritative aggregate or count whose
+  semantics decide the predicate, or another explicit completeness proof from
+  the source contract. When completeness is absent or indeterminate, classify
+  the decision as indeterminate and fail closed before the effect. A decisive
+  deny record may reject early because further pages cannot turn denial into
+  permission; partial absence must never permit early.
+- Keep the API's default and maximum page sizes, query-complexity limits,
+  ordering or snapshot semantics, and aggregate guarantees visible in the
+  adapter contract. Do not infer exhaustion from a short or exact-boundary page
+  unless the API explicitly defines that rule; prefer validated pagination
+  metadata.
+- Validate pagination metadata before advancing. `hasNextPage` without a
+  usable cursor, a repeated or cyclic cursor, malformed page information, a
+  transport failure, or cancellation before the terminal page makes the
+  allow-side evidence incomplete. Discard the partial allow decision and do not
+  publish or cache it as complete.
+- Bound pages, records, and repeated-cursor detection so a broken or adversarial
+  source cannot loop forever. Reaching a safety bound is rejection of
+  completeness, not successful exhaustion. Make the bound compatible with the
+  source's documented limits, or use an authoritative server-side predicate
+  when complete traversal cannot be bounded safely.
+- Keep display and diagnostic truncation separate from authorization inputs.
+  A UI may show a labelled subset, but that subset and any summary derived from
+  it must not be reused to authorize an effect.
+
+Use the production adapter and effect-spy matrix in
+[`automated-testing.md`](automated-testing.md#paginated-authorization-evidence-tests).
+
 ## Structured-Configuration Mutation
 
 Treat TOML, INI, YAML, service files, and similar configuration as structured
