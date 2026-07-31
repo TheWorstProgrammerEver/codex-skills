@@ -831,6 +831,55 @@ clock and boot-identity readers for the policy matrix:
 - Keep the tolerance and wait small but separated by a scheduling margin, add
   an independent watchdog, and remove the temporary state in `finally`.
 
+### Repeat-Install System Timer Tests
+
+When an installer deliberately runs more than once or transitions between
+configuration modes, exercise the production install path twice against a
+faithful system-manager fixture. A fake that turns every `restart` into a
+`waiting` state cannot reproduce systemd's elapsed-timer or service-condition
+semantics.
+
+At minimum, exercise this matrix:
+
+| Scenario | Required evidence |
+| --- | --- |
+| Safe-mode install followed by enabled-mode reinstall | The first install completes with its documented safe behavior. The second publishes the final unit content, reloads the manager, applies the explicit re-arm strategy, and finishes with the exact timer enabled, active, and carrying a finite next monotonic or realtime trigger. |
+| Already-active timer followed by reload and `enable --now` only | A faithful negative fixture reaches `active (elapsed)` with no finite next trigger. Reloading and calling `enable --now` leaves the already-active timer unarmed, so the final scheduling assertion fails even though enabled-state and active-state assertions pass. |
+| Condition-skipped oneshot with only a service-state-relative recurrence | Let an overdue timer attempt the service while a test-owned `Condition...=` evaluates false. A timer restart may attempt the service again, but the skipped activation supplies no required active or inactive transition; the timer remains elapsed with no finite next trigger and the final assertion fails. |
+| Condition-skipped oneshot with an independent recurring schedule | Keep the same skipped service result but use the production independent schedule, such as a recurring calendar cadence where appropriate. After the first attempted activation, the timer reports a later finite trigger without requiring service success, failure, or activation. |
+| Successful and failed service paths | Every supported result either preserves a finite next trigger or produces the installer's documented fail-closed result. The test does not infer scheduling from the service exit status alone. |
+
+- Assert enabled state, active state, and arming separately. Read the exact
+  timer's `UnitFileState`, `ActiveState`, and
+  `NextElapseUSecMonotonic`/`NextElapseUSecRealtime` properties, or its exact
+  `systemctl list-timers` row. Treat an empty, zero, `infinity`, `n/a`, or `-`
+  next-trigger value as unarmed under the declared target contract.
+- Mutation-check both independent defects. Replace the final re-arm operation
+  with `enable --now` while the timer is already active, and separately replace
+  the independent recurring schedule with one whose next trigger requires a
+  condition-skipped service transition. Each mutation must fail the finite-next
+  assertion while the enabled and active checks still pass.
+- Build the overdue condition-skip fixture from actual lifecycle state. Allow
+  the oneshot to complete once, retain its inactive transition as the relative
+  anchor, let that deadline pass, then make the test-owned condition false
+  before the timer attempts the service. Assert that the skip does not supply a
+  new required transition and that the old overdue anchor cannot produce a
+  finite next trigger.
+- Prefer an isolated target-compatible systemd manager or runtime-installed
+  test units for full semantic coverage. Exact transient units may cover a
+  narrower condition/next-elapse boundary only when reload and enablement are
+  proven separately. If a routine unit test uses an injected command adapter,
+  retain a narrow integration check for reload, active-timer restart, condition
+  skip, and next-elapse behavior; command-call assertions alone are not
+  timer-lifecycle evidence.
+- Give live integration fixtures unique test-owned unit names. Register cleanup
+  before the first manager mutation, then stop, disable, reset-failed, remove
+  only those exact units and drop-ins, reload the manager, and remove the
+  temporary root in `finally`.
+
+Follow the installer and schedule contract in
+[`systemd-timer-lifecycle.md`](systemd-timer-lifecycle.md).
+
 ## Process And Service Cleanup
 
 - Tests that spawn processes must wait for exit, terminate explicitly, or use a controlled fake process object.
