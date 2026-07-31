@@ -12,6 +12,12 @@ review priorities and review-response style.
 - Keep summaries brief and secondary to the findings.
 - If there are no findings, say so directly and mention residual risk or test gaps.
 - Separate correctness concerns from style preferences. Style feedback should explain the maintainability risk or local convention it protects.
+- For every collection whose apparent absence authorizes an effect, require
+  proof that the authorization reader saw the complete collection rather than
+  one page or display subset. Apply
+  [Complete Evidence For Negative Authorization Predicates](general-implementation.md#complete-evidence-for-negative-authorization-predicates)
+  and require the decisive later-page and malformed-pagination cases in
+  [Paginated Authorization Evidence Tests](automated-testing.md#paginated-authorization-evidence-tests).
 - For durable recovery stores, require the layered checks in
   [Recovery Validation Boundaries](general-implementation.md#recovery-validation-boundaries)
   and the negative and legitimate cases in
