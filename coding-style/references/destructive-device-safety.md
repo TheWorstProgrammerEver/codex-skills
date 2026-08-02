@@ -34,6 +34,55 @@ A configured expectation is a guardrail, not a hint. Missing metadata, an
 unexpected value, or an oversized device rejects authorization. Keep serials
 and similarly identifying values out of ordinary logs and diagnostics.
 
+### `lsblk` collection and identity parsing
+
+Treat command output as a transport representation, not as an identity string.
+In particular, `lsblk --raw` and `--pairs` can hex-escape unsafe bytes as
+`\xHH`; behavior also varies by util-linux version and output column. A model
+rendered for a human as `EXAMPLE SSD` can therefore arrive as
+`EXAMPLE\x20SSD`. Comparing that escaped text directly with an unescaped
+configured expectation is not a valid identity check, even though it fails
+closed on a mismatch.
+
+Prefer one structured invocation shaped like:
+
+```text
+lsblk --json --tree --bytes --paths --output NAME,KNAME,PKNAME,TYPE,MAJ:MIN,SIZE,RM,RO,MODEL,SERIAL,TRAN,MOUNTPOINTS <device>
+```
+
+Pass arguments without a shell, explicitly select every consumed column, and
+sanitize output-shaping environment variables, including unsetting
+`LIBSMARTCOLS_JSON`, so the adapter receives one JSON document in its tested
+form. `--bytes` removes display units and `--paths` removes basename ambiguity;
+neither proves that the JSON schema, dependency graph, or hardware metadata is
+complete. Pin or probe the supported util-linux contract, and keep the
+total-topology proof above authoritative.
+
+Decode stdout as strict UTF-8 and parse JSON with duplicate-object-member
+detection before constructing an identity. Require exactly the documented root
+shape, field names, scalar types, and record cardinality for the selected
+device. Reject malformed or trailing JSON, duplicate member names even when
+their values agree, missing or `null` required fields, unexpected scalar or
+container forms, invalid Unicode, and duplicate or contradictory device
+records. A parser that silently keeps the first or last duplicate key is not
+an authorization parser.
+
+Compare configured and observed identity values in the same decoded domain.
+Default to exact, case-sensitive comparison of decoded JSON strings. If a
+supported field source needs normalization, specify it per field, apply it to
+both values, and bound it. For example, an adapter may remove at most a tested
+number of trailing ASCII padding spaces from `MODEL`; it must preserve leading
+and internal spaces and must not silently trim controls, case-fold, or apply
+open-ended Unicode normalization. Reject forbidden controls and normalization
+overflow.
+
+If compatibility requires raw or pairs output, give it a separate strict
+decoder: validate every `\xHH` escape, decode to bytes, require valid UTF-8,
+then apply the same field policy. Truncated escapes, non-hex escapes,
+undecodable bytes, or an unexpected mixture of encoded and display forms deny
+authorization. Never switch only one side of a comparison between decoded and
+transport forms.
+
 Model device dependencies as a graph, not as a tree with one parent field.
 Preserve every edge for N:M stacks such as RAID, multipath, and multi-device
 filesystems, even when a flat topology command repeats nodes. Establish total
@@ -142,9 +191,30 @@ is empty. Cover at least:
   contradictory, and cyclic mounted-node fixtures;
 - protected mounts, allowed mounted descendants, every configured identity or
   constraint mismatch, unresolved and partition aliases, oversized targets,
-  redacted-plan construction, and rejected or malformed acknowledgement; and
+  redacted-plan construction, and rejected or malformed acknowledgement;
+- the `lsblk` identity parsing fixtures below, including the raw-output
+  negative control; and
 - the non-interactive path, proving `--yes` acknowledges an authorized plan but
   cannot bypass a guardrail.
+
+Exercise the production collector, strict parser, authorization boundary, and
+recording effect spy together with synthetic fixtures such as:
+
+| Fixture | Required result |
+| --- | --- |
+| Ordinary JSON model `"EXAMPLE-SSD"` | Decodes and compares exactly; later effects remain subject to every other authorization gate. |
+| Spaced JSON model `"EXAMPLE SSD"` | Matches the same decoded configured value without transport-level rewriting. |
+| JSON-escaped model `"EXAMPLE \"BRIDGE\""` | JSON decoding produces `EXAMPLE "BRIDGE"` and exact decoded comparison succeeds. |
+| Raw model `EXAMPLE\x20SSD` versus configured `EXAMPLE SSD` | A deliberately unsafe direct string comparison denies and leaves the effect trace empty; the separately tested strict raw decoder may produce the decoded value. |
+| Raw tab escape `EXAMPLE\x09SSD` | Decoding reaches the field policy, which rejects the forbidden control and leaves the effect trace empty. |
+| Missing, `null`, or non-string required model | Parsing or authorization denies and leaves the effect trace empty. |
+| Duplicate `model` member, duplicate selected-device record, or contradictory record | Parsing denies before first-value/last-value selection and leaves the effect trace empty. |
+| Malformed JSON, invalid UTF-8 or Unicode, `\x2`, `\xGG`, or an incomplete encoded byte sequence | Decoding or parsing denies and leaves the effect trace empty. |
+
+Build expected decoded values independently of collector output. Mutation-check
+the duplicate-member rejection and the raw direct-comparison negative control
+so a permissive parser or accidental transport comparison makes the focused
+suite fail.
 
 Use deterministic hooks between acknowledgement and every effect boundary.
 Prove lock contention, alias or identity replacement before the locked recheck,
