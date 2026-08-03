@@ -1,0 +1,4 @@
+interface:
+  display_name: "Publish GitHub Changes"
+  short_description: "Publish local changes through a Ready pull request"
+  default_prompt: "Use $gh-publish to publish this completed repository change as a Ready pull request."

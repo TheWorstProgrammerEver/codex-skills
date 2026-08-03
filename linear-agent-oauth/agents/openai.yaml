@@ -1,0 +1,4 @@
+interface:
+  display_name: "Linear Agent OAuth"
+  short_description: "Provision and validate per-agent Linear OAuth"
+  default_prompt: "Use $linear-agent-oauth to provision and validate a per-agent Linear OAuth identity safely."
