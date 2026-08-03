@@ -11,6 +11,7 @@ file, or checksum-derived name is not proof that its contents are trusted.
 - [Serialize By Content Identity](#serialize-by-content-identity)
 - [Validate Resume Responses](#validate-resume-responses)
 - [Verify Before Atomic Promotion](#verify-before-atomic-promotion)
+- [Promote Across Remote Filesystems](#promote-across-remote-filesystems)
 - [Bound Failures And Cleanup](#bound-failures-and-cleanup)
 - [Test The Whole Trust Boundary](#test-the-whole-trust-boundary)
 - [Related Guidance](#related-guidance)
@@ -113,11 +114,80 @@ suffix length, or checksum of only the resumed bytes is insufficient.
 A pre-existing partial that already has the pinned length follows these same
 whole-file gates; it is not a cache hit merely because no more bytes are needed.
 
-Create the partial on the final entry's filesystem and promote it with one
-atomic rename only after all gates pass. Never copy into the final pathname,
-rename before verification, or expose a temporary name that consumers treat as
-final. After promotion, callers still receive the final entry only through the
-verified acquisition path.
+Create the partial in the final entry's destination namespace and promote it
+through an adapter whose atomicity and error contract has been established for
+that exact filesystem and transport. For a proven local-filesystem adapter,
+this is normally one same-directory atomic rename after all gates pass. Never
+copy into the final pathname, rename before verification, or expose a temporary
+name that consumers treat as final. After promotion, callers still receive the
+final entry only through the verified acquisition path.
+
+## Promote Across Remote Filesystems
+
+A successful local POSIX probe does not establish promotion semantics for a
+mounted remote filesystem. Likewise, a mounted-client `rename(2)` error does
+not prove that the server left both names unchanged. Treat mounted-client and
+server-native operations as separate promotion adapters, even when they reach
+the same storage.
+
+Before production use, document each adapter's destination namespace,
+same-share or same-filesystem precondition, atomic-visibility guarantee,
+collision and overwrite behavior, durability guarantee, cache and reconnect
+behavior, and error classification. At minimum, distinguish definitely not
+started, definitely completed, and ambiguous outcomes. Capability-test a
+same-directory rename with generated non-secret bytes in a disposable area of
+the exact destination namespace and through the production authentication and
+transport shape. Confirm the old name is absent and the new name has the exact
+bytes from fresh mounted-client and authoritative server views. Treat the
+adapter as unsupported when those views conflict or an outcome remains
+ambiguous; repeat the probe after material server, mount, client, or transport
+changes.
+
+Model reconciliation states explicitly:
+
+| State | Required evidence and action |
+| --- | --- |
+| Absent | Neither staging nor final is present in fresh authoritative views. This is safe only before upload or after policy-owned cleanup; it is never promotion success. |
+| Staged | The staging name still has the exact verified identity, length, and digest, and the final name is authoritatively absent. Preserve staging as the recovery copy. |
+| Final | A fresh read of the final name has the exact expected length and digest. Only this state can become success, subject to any paired-object contract. |
+| Ambiguous | Views conflict, a name has unknown bytes, both names have an unexplained relationship, or final absence cannot be proven. Preserve every verified staging object and stop mutation until reconciliation becomes authoritative. |
+
+Use this ordered promotion protocol:
+
+1. Close and sync staging, then verify its exact identity, length, digest, and
+   required format from byte zero.
+2. Inspect staging and final names through fresh client and authoritative
+   server views. Require verified staging and authoritative final-name absence
+   before the first promotion attempt.
+3. Attempt promotion through the selected capability-tested adapter. After any
+   ambiguous return or transport error, do not recopy staging, overwrite final,
+   delete either name, or infer the server outcome from the local exception.
+   Reconnect or invalidate caches as the adapter contract requires and inspect
+   both views again.
+4. If final is absent and staging is still exact, a server-native same-share
+   rename may recover only when that adapter has its own proven contract.
+   Immediately before invoking it, re-read staging to re-establish exact
+   identity, length, and digest and recheck authoritative final-name absence.
+   Require non-overwrite behavior; if the server API cannot guarantee it, stop
+   for reconciliation rather than deleting or replacing final.
+5. After any apparent success, open the final name through a fresh destination
+   handle or connection, bypass or invalidate stale client caches, read the
+   whole object, and require the pinned length and digest. A successful rename
+   response or directory listing is insufficient.
+
+For an artifact and checksum-sidecar pair, model each name independently and
+publish success only after both finals pass fresh verification and the sidecar
+names the expected artifact digest. If one rename succeeds and the other is
+staged or ambiguous, preserve the verified remaining staging object, do not
+roll back or overwrite the already promoted name blindly, and reconcile the
+pair with the same rules. Remove staging residue only after the complete final
+contract is proven, and only when exact operation ownership is established.
+
+Use the remote-adapter scenarios in
+[`automated-testing.md`](automated-testing.md#remote-filesystem-promotion-tests).
+Keep directory-entry crash durability as a separate capability; a server-side
+rename and fresh read-back do not by themselves prove the directory-sync
+contract described by RYA-158.
 
 ## Bound Failures And Cleanup
 

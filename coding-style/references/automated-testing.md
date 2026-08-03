@@ -470,6 +470,49 @@ At minimum, exercise this example matrix:
   in `finally`. Never fault-test against a user, repository, or shared state
   directory.
 
+### Remote Filesystem Promotion Tests
+
+Test remote publication as a transport-specific state machine, not as a mocked
+local `rename` call. Use an injected promotion adapter to force exact outcomes
+and record client inspections, server inspections, reconnects, cache
+invalidations, reads, digests, renames, and cleanup. Retain a disposable
+SMB-compatible same-share integration fixture for the mounted-client and
+server-native paths before first production use and after material adapter,
+client, mount, or server changes. Supply authentication out of band and use
+only generated names and non-secret bytes.
+
+At minimum, exercise this matrix:
+
+| Scenario | Required evidence |
+| --- | --- |
+| Failure before rename | Staging remains byte-for-byte verified, final stays authoritatively absent, no server-native call or recopy occurs, and cleanup preserves the recovery copy. |
+| Ambiguous mounted rename with no server mutation | The mounted adapter returns an I/O-like error while server inspection still finds exact staging and no final. Reconciliation, not the exception, establishes this state before any recovery action. |
+| Mounted error after server-side success | The mounted call returns the same ambiguous error, but a fresh authoritative view finds final and no staging. Recovery does not recopy or invoke another rename; a fresh whole-object final read and digest decide success. |
+| Server-native recovery | After reconciliation proves exact staging and final absence, staging is re-read and reverified immediately before one non-overwriting same-share server-native rename. The final is then freshly read and verified. |
+| Artifact/sidecar partial success | One name is final while its peer remains staged or ambiguous. The proven final is not deleted or overwritten, the verified peer staging object is preserved, and success waits for fresh verification of both finals and their digest relationship. |
+| Reconnect and stale client cache | Client and server views initially disagree. Reconnect or cache invalidation occurs according to the adapter contract, no mutation occurs while evidence conflicts, and only the refreshed authoritative state selects recovery. |
+| Final verification failure | Rename appears successful but a fresh final read is short or digest-mismatched. The operation reports unresolved or corrupt final state, never success, and does not overwrite it from a retained staging copy. |
+| Owned cleanup | After complete success, only exact operation-owned staging residue is eligible for removal. Unknown, near-match, and unrelated entries remain unchanged; interrupted and ambiguous cases retain verified recovery data. |
+
+Assert the event order:
+
+```text
+verify staging -> inspect final absence -> attempt promotion ->
+reconcile ambiguous state -> server-native rename if authorized ->
+fresh final read -> verify final bytes -> owned cleanup
+```
+
+The server-native step is conditional, but no later step may move ahead of an
+applicable earlier gate. Add mutation controls that replace reconciliation with
+blind copy or overwrite, skip the immediate staging re-verification or final-
+absence check, trust a cached client listing, or accept the rename response
+without fresh final verification. Each mutation must fail before success is
+reported. Close both adapters, release handles, remove the generated namespace,
+and prove the disposable share has no test-owned residue in `finally`.
+
+Follow the production protocol in
+[`immutable-artifact-acquisition.md`](immutable-artifact-acquisition.md#promote-across-remote-filesystems).
+
 ### Transactional Sensitive-File Migration Tests
 
 Test the
