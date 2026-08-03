@@ -238,10 +238,16 @@ Follow the failure, retry, and mutation checks in
 
 ## Crash-Durable Atomic File Replacement
 
-On POSIX filesystems where reboot-safe persistence is part of the contract,
-distinguish file-content atomicity from directory-entry durability. A rename can
-make the complete new file visible to the current process without proving that
-the renamed directory entry will survive a crash.
+On POSIX filesystems where the local adapter's rename semantics are established
+and reboot-safe persistence is part of the contract, distinguish file-content
+atomicity from directory-entry durability. A rename can make the complete new
+file visible to the current process without proving that the renamed directory
+entry will survive a crash. A mounted remote filesystem does not inherit this
+contract merely because it exposes POSIX syscalls: require the transport-
+specific capability probe, ambiguous-state reconciliation, and fresh final
+read-back in
+[`immutable-artifact-acquisition.md`](immutable-artifact-acquisition.md#promote-across-remote-filesystems)
+for every remote promotion.
 
 - Exclusively create a recognizable, operation-owned temporary file in the
   destination directory with private permissions. Write all content, sync the
@@ -380,6 +386,11 @@ single-file replacement. The file protocol above covers one temporary file,
 one destination entry, and recovery of its containing-directory sync. A
 directory replacement must durably build a complete tree and preserve the
 previous tree across two promotion renames.
+
+Apply the remote-filesystem promotion contract to every rename below when the
+validated parent is remote. Do not claim atomic replacement from mounted-
+client syscall behavior alone, and do not begin a multi-rename replacement
+unless the adapter contract also defines reconciliation for partial success.
 
 - Resolve and validate the requested output before allocating temporary state.
   Reject filesystem roots, empty or current-directory targets, and configured
