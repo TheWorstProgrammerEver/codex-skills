@@ -233,7 +233,7 @@ class LinearOAuthOperator:
             issue = payload.get("issue")
             created_issue_id = issue.get("id") if isinstance(issue, dict) else None
             if not isinstance(created_issue_id, str) or not ISSUE_ID_RE.fullmatch(created_issue_id):
-                raise SafeFailure("graphql_mutation_failed", {"reconciliation_marker": marker})
+                raise SafeFailure("mutation_outcome_ambiguous", {"reconciliation_marker": marker})
             issue_id = created_issue_id
             created_issue = True
         if not issue_id:
@@ -258,7 +258,7 @@ class LinearOAuthOperator:
         comment_id = comment.get("id") if isinstance(comment, dict) else None
         if not isinstance(comment_id, str) or not ISSUE_ID_RE.fullmatch(comment_id):
             raise SafeFailure(
-                "graphql_mutation_failed",
+                "mutation_outcome_ambiguous",
                 {"reconciliation_marker": marker, "issue_id": issue_id},
             )
         try:

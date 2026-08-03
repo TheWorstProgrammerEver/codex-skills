@@ -162,6 +162,7 @@ def _read_private_file(path: Path) -> str:
         raise SafeFailure("config_path_invalid")
     directory_fd = _open_private_directory(path.parent)
     flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    flags |= getattr(os, "O_NONBLOCK", 0)
     try:
         try:
             file_fd = os.open(path.name, flags, dir_fd=directory_fd)

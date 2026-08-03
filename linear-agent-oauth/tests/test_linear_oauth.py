@@ -4,7 +4,9 @@ import contextlib
 import importlib.util
 import io
 import json
+import os
 import stat
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -153,6 +155,26 @@ class LinearOAuthTest(unittest.TestCase):
             linear_oauth.load_config(self.config_path)
         self.assertEqual("config_path_type", failure.exception.code)
 
+    def test_config_rejects_fifo_without_blocking(self) -> None:
+        fifo_path = self.config_directory / "credential-fifo.env"
+        os.mkfifo(fifo_path, 0o600)
+
+        completed = subprocess.run(
+            [sys.executable, str(SCRIPT), "check-env", "--env-file", str(fifo_path)],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=1,
+        )
+
+        self.assertEqual(1, completed.returncode)
+        self.assertEqual(
+            {"status": "error", "code": "config_path_type"},
+            json.loads(completed.stdout),
+        )
+        self.assertEqual("", completed.stderr)
+        self.assertNotIn(str(self.root), completed.stdout)
+
     def test_config_rejects_unknown_fields_and_admin_scope(self) -> None:
         self.write_config(LINEAR_UNEXPECTED=CLIENT_SECRET)
         with self.assertRaises(linear_oauth.SafeFailure) as failure:
@@ -267,6 +289,61 @@ class LinearOAuthTest(unittest.TestCase):
             )
         self.assertEqual("mutation_outcome_ambiguous", failure.exception.code)
         self.assertIn("reconciliation_marker", failure.exception.details)
+        self.assert_no_secret(failure.exception.details)
+
+    def test_successful_issue_mutation_without_id_is_ambiguous(self) -> None:
+        self.write_config()
+        transport = FakeTransport(
+            [
+                token_response(ACCESS_TOKEN_ONE),
+                viewer_response(),
+                response(200, {"data": {"issueCreate": {"success": True, "issue": {}}}}),
+            ]
+        )
+
+        with self.assertRaises(linear_oauth.SafeFailure) as failure:
+            linear_oauth.LinearOAuthOperator(self.config(), transport).validate_attribution(
+                issue_id=None,
+                create_issue=True,
+            )
+
+        self.assertEqual("mutation_outcome_ambiguous", failure.exception.code)
+        self.assertIn("reconciliation_marker", failure.exception.details)
+        self.assertNotIn("issue_id", failure.exception.details)
+        self.assert_no_secret(failure.exception.details)
+
+    def test_successful_comment_mutation_with_malformed_id_is_ambiguous(self) -> None:
+        self.write_config()
+        transport = FakeTransport(
+            [
+                token_response(ACCESS_TOKEN_ONE),
+                viewer_response(),
+                response(
+                    200,
+                    {
+                        "data": {
+                            "commentCreate": {
+                                "success": True,
+                                "comment": {
+                                    "id": "invalid comment id",
+                                    "user": {"id": "viewer-id", "name": "my-agent"},
+                                },
+                            }
+                        }
+                    },
+                ),
+            ]
+        )
+
+        with self.assertRaises(linear_oauth.SafeFailure) as failure:
+            linear_oauth.LinearOAuthOperator(self.config(), transport).validate_attribution(
+                issue_id="issue-id",
+                create_issue=False,
+            )
+
+        self.assertEqual("mutation_outcome_ambiguous", failure.exception.code)
+        self.assertIn("reconciliation_marker", failure.exception.details)
+        self.assertEqual("issue-id", failure.exception.details["issue_id"])
         self.assert_no_secret(failure.exception.details)
 
     def test_revocation_uses_minted_token_and_requires_401(self) -> None:
