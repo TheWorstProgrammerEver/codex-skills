@@ -52,6 +52,14 @@ def viewer_response(viewer_id: str = "viewer-id", name: str = "my-agent") -> obj
     return response(200, {"data": {"viewer": {"id": viewer_id, "name": name}}})
 
 
+def source_bytecode_artifacts() -> set[Path]:
+    return {
+        path.relative_to(SKILL_ROOT)
+        for path in SKILL_ROOT.rglob("*")
+        if path.name == "__pycache__" or path.suffix in {".pyc", ".pyo"}
+    }
+
+
 class FakeTransport:
     def __init__(self, responses: list[object]) -> None:
         self.responses = responses
@@ -155,12 +163,13 @@ class LinearOAuthTest(unittest.TestCase):
             linear_oauth.load_config(self.config_path)
         self.assertEqual("config_path_type", failure.exception.code)
 
-    def test_config_rejects_fifo_without_blocking(self) -> None:
+    def test_config_rejects_fifo_without_blocking_or_source_bytecode(self) -> None:
         fifo_path = self.config_directory / "credential-fifo.env"
         os.mkfifo(fifo_path, 0o600)
+        bytecode_before = source_bytecode_artifacts()
 
         completed = subprocess.run(
-            [sys.executable, str(SCRIPT), "check-env", "--env-file", str(fifo_path)],
+            [sys.executable, "-B", str(SCRIPT), "check-env", "--env-file", str(fifo_path)],
             check=False,
             capture_output=True,
             text=True,
@@ -174,6 +183,7 @@ class LinearOAuthTest(unittest.TestCase):
         )
         self.assertEqual("", completed.stderr)
         self.assertNotIn(str(self.root), completed.stdout)
+        self.assertEqual(bytecode_before, source_bytecode_artifacts())
 
     def test_config_rejects_unknown_fields_and_admin_scope(self) -> None:
         self.write_config(LINEAR_UNEXPECTED=CLIENT_SECRET)
