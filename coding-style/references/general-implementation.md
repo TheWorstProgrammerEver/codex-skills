@@ -250,8 +250,12 @@ immutable revision before effect reservation, using a protected channel when
 its contents are sensitive. Bind the operation to that revision and its
 payload identity; recovery of the same operation must not invoke the model
 again or read a newer draft. Treat a deliberate content change as a new
-revision whose delivery lineage is reset explicitly before any reservation,
-not as a retry of the prior effect.
+revision only while the operation has no reservation. Refuse content refresh
+while any revision of that operation remains `pending`; first reconcile the
+existing lineage authoritatively, without invoking the model, publishing a new
+revision, or resetting state. After `sent`, preserve the completed lineage and
+require any further delivery to be a separately reviewed and authorized
+logical operation, not a refreshed revision or retry of the original effect.
 
 Before reserving an attempt, the executor must validate all of the following:
 
@@ -276,7 +280,9 @@ state machine:
 | `pending`; transport loss, timeout, cancellation after submission, malformed success, unvalidated receipt, or interruption in the acceptance/checkpoint window | Retain `pending`, stop automatic execution, and require authoritative reconciliation. Do not clear, re-reserve, or call again. |
 | `pending`; reconciliation proves acceptance | Publish `sent` without resubmitting. |
 | `pending`; reconciliation definitively proves non-application | Clear to the retryable initial state without resubmitting. |
+| `pending`; content refresh requested | Refuse refresh until reconciliation resolves the existing lineage. Do not invoke the model, publish another revision, reset state, reserve, or call. |
 | `sent`; any retry or restart | Return the recorded no-op result without another external call. |
+| `sent`; content refresh or another delivery requested | Preserve the completed lineage. Require a separately reviewed and authorized logical operation identity before producing or delivering another revision. |
 
 Writing only `sent` after the external call cannot eliminate the crash window:
 the provider may accept the effect before the local success transition is

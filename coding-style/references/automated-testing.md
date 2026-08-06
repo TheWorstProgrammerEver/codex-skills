@@ -849,14 +849,16 @@ At minimum, cover this state matrix:
 
 | Scenario | Required evidence |
 | --- | --- |
-| Reviewed payload replay | After immutable payload publication, a same-process retry and fresh-runtime restart use the byte-identical revision without another model call. An explicit content refresh creates a new revision before reservation rather than mutating the pending effect. |
+| Reviewed payload replay | After immutable payload publication, a same-process retry and fresh-runtime restart use the byte-identical revision without another model call. An explicit content refresh from the unreserved retryable state creates a new revision before reservation rather than mutating an existing revision. |
 | First send | Preflight validates provider, destination, authorization, and secret custody; durable `pending` publication precedes the only provider call; a validated receipt then produces durable `sent`. |
 | Already-`sent` replay | A same-process retry and a fresh-runtime restart both return a no-op result with zero additional provider calls. |
 | Definitive rejection and safe retry | The provider proves non-application, the executor clears `pending`, and a later retry repeats preflight and persists a new `pending` reservation before its one new call. |
 | Ambiguous transport result | The provider accepts into its external ledger but the adapter reports transport loss. Local state remains `pending`; neither the current executor nor a fresh one calls again. |
 | Malformed or mismatched success | A success-shaped response with an absent or invalid receipt, wrong provider, authenticated sender, destination, operation, or payload identity remains `pending` and returns bounded reconciliation-required output. |
 | Retry while `pending` | A concurrent caller, ordinary retry, and restarted executor all refuse delivery until reconciliation changes state. |
+| Content refresh while `pending` | A same-process request and fresh-runtime restart both refuse refresh before invoking the model or publishing a revision. State remains `pending`, and the executor makes no provider call until authoritative reconciliation resolves the existing lineage. |
 | Reconciliation after ambiguity | Authoritative acceptance advances `pending` to `sent` without a call; definitive non-application clears it without a call; indeterminate reconciliation retains `pending`. |
+| Content refresh after `sent` | A refresh request cannot reset or reuse the completed lineage. A further delivery requires a separately reviewed and authorized logical operation identity; retrying the original remains a no-op with no model or provider call. |
 
 Record transition and adapter events, then assert the strict first-send order:
 
