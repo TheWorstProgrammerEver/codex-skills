@@ -837,6 +837,75 @@ Enumerate at least these ordered crash windows:
   shared across fresh runtime instances, terminate any real process, and remove
   temporary state in `finally`.
 
+### Prompt-Driven External Effect Tests
+
+Exercise the production deterministic executor and durable store with an
+injected provider adapter whose acceptance ledger survives fresh executor
+instances. Do not let the model/provider fake call the effect adapter directly;
+first assert that it can produce only the reviewed non-secret payload consumed
+by the executor.
+
+At minimum, cover this state matrix:
+
+| Scenario | Required evidence |
+| --- | --- |
+| Reviewed payload replay | After immutable payload publication, a same-process retry and fresh-runtime restart use the byte-identical revision without another model call. An explicit content refresh creates a new revision before reservation rather than mutating the pending effect. |
+| First send | Preflight validates provider, destination, authorization, and secret custody; durable `pending` publication precedes the only provider call; a validated receipt then produces durable `sent`. |
+| Already-`sent` replay | A same-process retry and a fresh-runtime restart both return a no-op result with zero additional provider calls. |
+| Definitive rejection and safe retry | The provider proves non-application, the executor clears `pending`, and a later retry repeats preflight and persists a new `pending` reservation before its one new call. |
+| Ambiguous transport result | The provider accepts into its external ledger but the adapter reports transport loss. Local state remains `pending`; neither the current executor nor a fresh one calls again. |
+| Malformed or mismatched success | A success-shaped response with an absent or invalid receipt, wrong provider, authenticated sender, destination, operation, or payload identity remains `pending` and returns bounded reconciliation-required output. |
+| Retry while `pending` | A concurrent caller, ordinary retry, and restarted executor all refuse delivery until reconciliation changes state. |
+| Reconciliation after ambiguity | Authoritative acceptance advances `pending` to `sent` without a call; definitive non-application clears it without a call; indeterminate reconciliation retains `pending`. |
+
+Record transition and adapter events, then assert the strict first-send order:
+
+```text
+preflight -> durable pending -> provider call -> validate receipt -> durable sent
+```
+
+Inject interruption before and after every event and construct a fresh executor
+against the same durable state and provider ledger. In particular, simulate
+acceptance immediately after the provider-call hook and interrupt before
+receipt validation or `sent` publication. Recovery must observe `pending`,
+make zero additional calls, and request reconciliation. Also cover interruption
+before durable `pending` and prove that no provider call could have occurred.
+Temporarily change pending recovery to clear or resend; the accepted-before-
+checkpoint case must then fail with a duplicate ledger entry.
+
+Test structural secret exclusion separately from value redaction. The prompt
+builder, model payload, executor request, command plan, receipt, and durable
+state schemas must have closed field sets with no credential value, generic
+environment map, arbitrary argv, raw provider response, or unrestricted
+metadata carrier. Credential-capable fields accept only an opaque reference or
+narrow capability whose serializer cannot yield secret bytes. Use a
+compile-time, schema, AST, or source-contract scan appropriate to the language
+to prove those carriers are unavailable.
+
+Supplement the structural proof with generated placeholder markers. Make the
+credential capability expose a marker only inside the connector, and make the
+provider fake return different markers in raw headers, body, URL, and exception
+text. After success, rejection, malformed success, transport loss, retry, and
+restart, scan every captured prompt, payload, argv vector, receipt, checkpoint,
+durable byte, log, and diagnostic. Require all markers to be absent and every
+diagnostic to contain only an allowlisted code and bounded non-secret fields.
+Mutation-check each serializer or adapter by adding a generic string carrier;
+the structural scan or marker assertion must fail before publication.
+
+When provider-native idempotency is supported, verify that every authorized
+provider-specific reconciliation request for one logical effect uses the same
+key and canonical request. Exercise the provider's documented expiry and
+conflict boundaries; the executor must stop when the guarantee no longer
+covers the ambiguous attempt. Keep non-idempotent and idempotent-provider cases
+separate so a fake deduplicating ledger cannot make the default fail-closed
+path pass accidentally.
+
+Allocate the state store and fake provider ledger beneath one test-created
+temporary root, close every executor, and remove the root in `finally`. Use
+only generated non-secret identities and markers. Follow the production
+contract in
+[`general-implementation.md`](general-implementation.md#prompt-driven-external-effect-execution).
+
 ### Persisted Clock-Stability Tests
 
 Test the
