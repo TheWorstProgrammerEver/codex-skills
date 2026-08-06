@@ -236,6 +236,87 @@ and submit it.
 Follow the failure, retry, and mutation checks in
 [`automated-testing.md`](automated-testing.md#readiness-gated-secret-hydration-tests).
 
+## Prompt-Driven External Effect Execution
+
+A retryable model or provider step may propose and render an external-effect
+payload, but it must not own delivery. Route notifications, comments, tickets,
+deployments, payments, and other one-time writes through a narrow deterministic
+executor whose closed input schema identifies the reviewed payload, operation,
+provider, and destination. Keep provider clients, credential material, and the
+authority to submit the effect outside the model-visible runtime.
+
+Publish the payload accepted by the workflow's policy or human review as an
+immutable revision before effect reservation, using a protected channel when
+its contents are sensitive. Bind the operation to that revision and its
+payload identity; recovery of the same operation must not invoke the model
+again or read a newer draft. Treat a deliberate content change as a new
+revision only while the operation has no reservation. Refuse content refresh
+while any revision of that operation remains `pending`; first reconcile the
+existing lineage authoritatively, without invoking the model, publishing a new
+revision, or resetting state. After `sent`, preserve the completed lineage and
+require any further delivery to be a separately reviewed and authorized
+logical operation, not a refreshed revision or retry of the original effect.
+
+Before reserving an attempt, the executor must validate all of the following:
+
+- the configured provider or authenticated sender identity is the intended
+  one, not merely that some credential authenticates;
+- the canonical destination identity matches the reviewed destination and the
+  current authorization permits this exact operation;
+- any credential file or secret capability has the required custody, type,
+  ownership, mode, and single-link properties without returning credential
+  bytes to the model or caller; and
+- the immutable payload identity, operation identity, and any provider-native
+  idempotency key agree with the state being resumed.
+
+Serialize concurrent callers for one operation identity and apply this durable
+state machine:
+
+| Current state and observation | Required transition |
+| --- | --- |
+| No reservation; preflight succeeds | Durably publish `pending` before the external call. Record only constrained non-secret operation, provider, authenticated-sender, destination, payload-identity, and idempotency metadata. |
+| `pending`; validated provider receipt proves acceptance | Durably publish `sent`, retaining only the bounded non-secret evidence needed for later no-op or reconciliation decisions. |
+| `pending`; authoritative response definitively rejects the request and proves the effect was not applied | Clear `pending` to the retryable initial state. A later retry must repeat preflight and durably reserve a new attempt before calling. |
+| `pending`; transport loss, timeout, cancellation after submission, malformed success, unvalidated receipt, or interruption in the acceptance/checkpoint window | Retain `pending`, stop automatic execution, and require authoritative reconciliation. Do not clear, re-reserve, or call again. |
+| `pending`; reconciliation proves acceptance | Publish `sent` without resubmitting. |
+| `pending`; reconciliation definitively proves non-application | Clear to the retryable initial state without resubmitting. |
+| `pending`; content refresh requested | Refuse refresh until reconciliation resolves the existing lineage. Do not invoke the model, publish another revision, reset state, reserve, or call. |
+| `sent`; any retry or restart | Return the recorded no-op result without another external call. |
+| `sent`; content refresh or another delivery requested | Preserve the completed lineage. Require a separately reviewed and authorized logical operation identity before producing or delivering another revision. |
+
+Writing only `sent` after the external call cannot eliminate the crash window:
+the provider may accept the effect before the local success transition is
+durable. Absence of `sent` is therefore not evidence that delivery did not
+occur, and a leftover `pending` reservation is not permission to retry.
+
+Prefer an upstream idempotency key when the provider guarantees that the same
+key and canonical request identify one effect across the full retry and
+reconciliation window. Document the key's scope, request-binding rules,
+retention period, and conflict behavior. Reuse the same key for the same
+logical effect; never generate a replacement key to escape an ambiguous
+result. Use an authoritative status endpoint or a provider-specific
+reconciliation adapter under that same key when available. The ordinary
+executor must still refuse delivery while local state is `pending`; provider
+idempotency does not turn an unvalidated response into `sent`, authorize a
+generic retry, or substitute for local recovery state.
+
+Keep credentials structurally absent from model prompts, payload schemas,
+command arguments, receipts, checkpoints, durable state, logs, and
+diagnostics. Give the deterministic connector only a narrow secret-reading or
+signing capability after preflight, and use a minimal child environment or
+in-process provider adapter rather than placing secrets in argv. Define a
+closed receipt schema containing stable status and provider identifiers, not
+raw headers, response bodies, exceptions, or credential-bearing URLs. Validate
+that receipt against the expected provider, authenticated sender, destination,
+operation, and payload before recording `sent`.
+
+Return bounded diagnostic codes for preflight rejection, definitive upstream
+rejection, ambiguous outcome, reconciliation required, and malformed receipt.
+Do not include raw provider output, payload contents, secrets, native paths, or
+attacker-controlled text. Use the fresh-runtime and structural-boundary matrix
+in
+[`automated-testing.md`](automated-testing.md#prompt-driven-external-effect-tests).
+
 ## Crash-Durable Atomic File Replacement
 
 On POSIX filesystems where the local adapter's rename semantics are established

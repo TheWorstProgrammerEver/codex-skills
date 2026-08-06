@@ -42,6 +42,15 @@ review priorities and review-response style.
   [Ambiguous In-Flight Retry-Budget Tests](automated-testing.md#ambiguous-in-flight-retry-budget-tests)
   that recovery cannot replay one `started` attempt indefinitely under an
   unchanged budget.
+- For a prompt-driven external write, require the model to produce only the
+  reviewed payload and a deterministic executor to own identity checks, secret
+  custody, durable reservation, delivery, receipt validation, and
+  reconciliation. A `pending` restart must stop rather than resend, while only
+  a definitive non-application result may reopen the operation. Follow
+  [Prompt-Driven External Effect Execution](general-implementation.md#prompt-driven-external-effect-execution)
+  and require the fresh-runtime, structural-secret, and accepted-before-
+  checkpoint cases in
+  [Prompt-Driven External Effect Tests](automated-testing.md#prompt-driven-external-effect-tests).
 - For persisted clock observations, identify whether every monotonic source is
   process-, boot-, or machine-scoped. Reject process-scoped readings compared
   across invocations; require boot-scoped readings to carry a boot ID, with
