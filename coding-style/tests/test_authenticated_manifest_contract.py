@@ -28,6 +28,16 @@ ROOT_CORE_FIELDS = {
     "policyIndexSha256",
     "retentionTombstoneIndexSha256",
     "testEvidenceIndexSha256",
+    "forwardRecovery",
+}
+FORWARD_RECOVERY_FIELDS = {
+    "forwardRecoverySchemaVersion",
+    "currentPredecessor",
+    "abandonedContentHead",
+    "restoreContentFrom",
+    "recoveryPolicySha256",
+    "reason",
+    "cutoffSha256",
 }
 CUTOFF_FIELDS = {
     "cutoffSchemaVersion",
@@ -88,6 +98,12 @@ AUTHORITY_CORE_FIELDS = {
     "cutoff",
     "transitionTransactionId",
     "nextRootCoreSha256",
+}
+AFFECTED_EVIDENCE_FIELDS = {
+    "lastTrustedHead",
+    "suspectHead",
+    "affectedEvidenceSha256s",
+    "reconstructedChainSha256",
 }
 APPROVAL_FIELDS = {
     "approvalSchemaVersion",
@@ -174,9 +190,12 @@ def validate_bundle(bundle, check_golden=True):
     require_exact_fields(next_root, ROOT_CORE_FIELDS, "nextRootCore")
     require_exact_fields(cutoff, CUTOFF_FIELDS, "cutoff")
     require_exact_fields(proof, REPLACEMENT_PROOF_FIELDS, "replacementProof")
-    require_exact_fields(core, AUTHORITY_CORE_FIELDS, "authorityTransitionCore")
     require_exact_fields(final_root, FINAL_ROOT_FIELDS, "finalRoot")
-    require(next_root["rootType"] == "authority-transition", "wrong root type")
+    require(
+        next_root["rootType"] in {"ordinary", "authority-transition"},
+        "wrong root type",
+    )
+    require(next_root["rootType"] == "authority-transition", "not a transition root")
 
     collection = next_root["collectionId"]
     transaction = core["transitionTransactionId"]
@@ -218,13 +237,64 @@ def validate_bundle(bundle, check_golden=True):
     )
     require(proof["proofPurpose"] == "replacement-key-possession", "bad purpose")
     require(proof["replacementRole"] == proof["subjectRole"], "cross-role proof")
-    require(
-        proof["lastTrustedHead"] is None
-        and proof["suspectHead"] is None
-        and proof["affectedEvidenceSha256s"] == []
-        and proof["reconstructedChainSha256"] is None,
-        "unexpected affected-evidence profile",
-    )
+
+    affects_current_head = cutoff_covers(cutoff, prior_head["generationSequence"])
+    if affects_current_head:
+        require_exact_fields(
+            core,
+            AUTHORITY_CORE_FIELDS | AFFECTED_EVIDENCE_FIELDS,
+            "authorityTransitionCore",
+        )
+        require(next_root["forwardRecovery"] is not None, "missing forward recovery")
+        for field in AFFECTED_EVIDENCE_FIELDS:
+            require(proof[field] == core[field], f"{field} mismatch")
+        validate_head(proof["lastTrustedHead"], collection)
+        validate_head(proof["suspectHead"], collection)
+        require(proof["suspectHead"] == prior_head, "wrong suspect head")
+        require(proof["affectedEvidenceSha256s"], "missing affected evidence")
+        require(proof["reconstructedChainSha256"] is not None, "missing chain")
+    else:
+        require_exact_fields(core, AUTHORITY_CORE_FIELDS, "authorityTransitionCore")
+        require(
+            proof["lastTrustedHead"] is None
+            and proof["suspectHead"] is None
+            and proof["affectedEvidenceSha256s"] == []
+            and proof["reconstructedChainSha256"] is None,
+            "unexpected affected-evidence profile",
+        )
+
+    forward_recovery = next_root["forwardRecovery"]
+    if forward_recovery is not None:
+        require_exact_fields(
+            forward_recovery,
+            FORWARD_RECOVERY_FIELDS,
+            "forwardRecovery",
+        )
+        require(
+            forward_recovery["forwardRecoverySchemaVersion"]
+            == "olympus-artifact-forward-recovery/1",
+            "bad forward-recovery schema",
+        )
+        for field in ("currentPredecessor", "abandonedContentHead", "restoreContentFrom"):
+            validate_head(forward_recovery[field], collection)
+        require(
+            forward_recovery["currentPredecessor"] == prior_head,
+            "wrong recovery predecessor",
+        )
+        require(
+            forward_recovery["abandonedContentHead"] == prior_head,
+            "wrong abandoned head",
+        )
+        require(forward_recovery["reason"], "missing recovery reason")
+        require(
+            forward_recovery["cutoffSha256"] == sha256(cutoff),
+            "wrong recovery cutoff",
+        )
+        if affects_current_head:
+            require(
+                forward_recovery["restoreContentFrom"] == proof["lastTrustedHead"],
+                "recovery source is not last trusted head",
+            )
 
     for value in (cutoff, proof, core):
         require(value["collectionId"] == collection, "collection mismatch")
@@ -370,14 +440,30 @@ class AuthenticatedManifestContractTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_bundle(candidate, check_golden=False)
 
-    def test_golden_acyclic_contract(self):
+    def test_golden_authority_transition_with_forward_recovery(self):
         validate_bundle(self.fixture)
+
+    def test_cutoff_covering_current_head_requires_forward_recovery(self):
+        self.assert_invalid(lambda o: o["nextRootCore"].pop("forwardRecovery"))
+        self.assert_invalid(
+            lambda o: o["nextRootCore"].__setitem__("forwardRecovery", None)
+        )
+        self.assert_invalid(
+            lambda o: o["nextRootCore"]["forwardRecovery"].__setitem__(
+                "restoreContentFrom", head(8, "generation-8", "8" * 64)
+            )
+        )
 
     def test_altered_omitted_extra_and_later_links_fail(self):
         mutations = [
             lambda o: o["nextRootCore"].__setitem__("extra", True),
             lambda o: o["nextRootCore"].pop("schemaIndexSha256"),
             lambda o: o["nextRootCore"].__setitem__("authorityTransitionCoreSha256", "0" * 64),
+            lambda o: o["nextRootCore"]["forwardRecovery"].__setitem__("extra", True),
+            lambda o: o["nextRootCore"]["forwardRecovery"].pop("recoveryPolicySha256"),
+            lambda o: o["nextRootCore"]["forwardRecovery"].__setitem__(
+                "authorityTransitionCoreSha256", "0" * 64
+            ),
             lambda o: o["replacementProof"].__setitem__("authorityTransitionCoreSha256", "0" * 64),
             lambda o: o["authorityTransitionCore"].__setitem__("authorityApprovalSha256s", []),
             lambda o: o["finalRoot"].pop("authorityApprovalSha256s"),
@@ -397,6 +483,12 @@ class AuthenticatedManifestContractTests(unittest.TestCase):
             lambda o: o["replacementProof"].__setitem__("nextRootCoreSha256", "0" * 64),
             lambda o: o["replacementProof"].__setitem__("cutoffSha256", "0" * 64),
             lambda o: o["replacementProof"].__setitem__("lastTrustedHead", head(8, "g8", "8" * 64)),
+            lambda o: o["nextRootCore"]["forwardRecovery"].__setitem__(
+                "currentPredecessor", head(8, "generation-8", "8" * 64)
+            ),
+            lambda o: o["nextRootCore"]["forwardRecovery"].__setitem__(
+                "cutoffSha256", "0" * 64
+            ),
             lambda o: o["authorityApprovals"][0].__setitem__("authorityTransitionCoreSha256", "0" * 64),
             lambda o: o["authorityApprovals"].reverse(),
             lambda o: o["finalRoot"]["authorityApprovalSha256s"].pop(),

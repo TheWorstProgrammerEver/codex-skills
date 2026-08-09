@@ -17,7 +17,31 @@
       "schemaIndexSha256": "4444444444444444444444444444444444444444444444444444444444444444",
       "policyIndexSha256": "5555555555555555555555555555555555555555555555555555555555555555",
       "retentionTombstoneIndexSha256": "6666666666666666666666666666666666666666666666666666666666666666",
-      "testEvidenceIndexSha256": "7777777777777777777777777777777777777777777777777777777777777777"
+      "testEvidenceIndexSha256": "7777777777777777777777777777777777777777777777777777777777777777",
+      "forwardRecovery": {
+        "forwardRecoverySchemaVersion": "olympus-artifact-forward-recovery/1",
+        "currentPredecessor": {
+          "collectionId": "fixture-archive",
+          "generationSequence": "9",
+          "generationId": "generation-9",
+          "rootSha256": "9999999999999999999999999999999999999999999999999999999999999999"
+        },
+        "abandonedContentHead": {
+          "collectionId": "fixture-archive",
+          "generationSequence": "9",
+          "generationId": "generation-9",
+          "rootSha256": "9999999999999999999999999999999999999999999999999999999999999999"
+        },
+        "restoreContentFrom": {
+          "collectionId": "fixture-archive",
+          "generationSequence": "7",
+          "generationId": "generation-7-safe",
+          "rootSha256": "7777777777777777777777777777777777777777777777777777777777777777"
+        },
+        "recoveryPolicySha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "reason": "checkpoint-evidence-compromise",
+        "cutoffSha256": "a3cf6de690b612d5feceef58897c3b03f14e6d73ea5bd53b003dc1fefcc280c0"
+      }
     },
     "cutoff": {
       "cutoffSchemaVersion": "olympus-authority-evidence-cutoff/1",
@@ -34,7 +58,7 @@
       "subjectFingerprint": "sha256:checkpoint-old-fixture",
       "reason": "compromise",
       "comparison": "effective-sequence-gte",
-      "firstAffectedSequence": "10",
+      "firstAffectedSequence": "9",
       "evidenceScope": "all-authority-evidence-signed-by-subject"
     },
     "replacementProof": {
@@ -61,12 +85,24 @@
       "newRecoveryAuthoritySetId": "recovery-set-v1",
       "oldTrustPolicySha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "newTrustPolicySha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-      "nextRootCoreSha256": "504452155df2692a7ce6952d291a37397baf6daa3e3c40eee6bddbeb692fc972",
-      "cutoffSha256": "b4ad43bab9bd5aeaf0ad80be3cd4401e4629bf6e53b0e419215a0416f7ced2be",
-      "lastTrustedHead": null,
-      "suspectHead": null,
-      "affectedEvidenceSha256s": [],
-      "reconstructedChainSha256": null
+      "nextRootCoreSha256": "9002dc4e40bfa34600b6c897808601baea7db15d5c055c352c35538ca82a0099",
+      "cutoffSha256": "a3cf6de690b612d5feceef58897c3b03f14e6d73ea5bd53b003dc1fefcc280c0",
+      "lastTrustedHead": {
+        "collectionId": "fixture-archive",
+        "generationSequence": "7",
+        "generationId": "generation-7-safe",
+        "rootSha256": "7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "suspectHead": {
+        "collectionId": "fixture-archive",
+        "generationSequence": "9",
+        "generationId": "generation-9",
+        "rootSha256": "9999999999999999999999999999999999999999999999999999999999999999"
+      },
+      "affectedEvidenceSha256s": [
+        "8888888888888888888888888888888888888888888888888888888888888888"
+      ],
+      "reconstructedChainSha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
     },
     "authorityTransitionCore": {
       "schemaVersion": "olympus-authority-transition-core/1",
@@ -89,7 +125,7 @@
       "activationBoundarySequence": "10",
       "replacementKeyId": "checkpoint-new",
       "replacementFingerprint": "sha256:checkpoint-new-fixture",
-      "replacementProofSha256": "59ab3e1eb57c4c2155c8a0a4950f37f1823409fab2886db11ccaffb8cf0fe2d0",
+      "replacementProofSha256": "d109409d3c006a038c5b71a6c229e99e1a2555acb3b68cc59370129948e3ff76",
       "cutoff": {
         "cutoffSchemaVersion": "olympus-authority-evidence-cutoff/1",
         "collectionId": "fixture-archive",
@@ -105,16 +141,32 @@
         "subjectFingerprint": "sha256:checkpoint-old-fixture",
         "reason": "compromise",
         "comparison": "effective-sequence-gte",
-        "firstAffectedSequence": "10",
+        "firstAffectedSequence": "9",
         "evidenceScope": "all-authority-evidence-signed-by-subject"
       },
       "transitionTransactionId": "transaction-10",
-      "nextRootCoreSha256": "504452155df2692a7ce6952d291a37397baf6daa3e3c40eee6bddbeb692fc972"
+      "nextRootCoreSha256": "9002dc4e40bfa34600b6c897808601baea7db15d5c055c352c35538ca82a0099",
+      "lastTrustedHead": {
+        "collectionId": "fixture-archive",
+        "generationSequence": "7",
+        "generationId": "generation-7-safe",
+        "rootSha256": "7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "suspectHead": {
+        "collectionId": "fixture-archive",
+        "generationSequence": "9",
+        "generationId": "generation-9",
+        "rootSha256": "9999999999999999999999999999999999999999999999999999999999999999"
+      },
+      "affectedEvidenceSha256s": [
+        "8888888888888888888888888888888888888888888888888888888888888888"
+      ],
+      "reconstructedChainSha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
     },
     "authorityApprovals": [
       {
         "approvalSchemaVersion": "olympus-authority-approval/1",
-        "authorityTransitionCoreSha256": "b90150250cb3d4fe5dff21caea3bd656609030056d5c1bacd8b335fabbd4ceae",
+        "authorityTransitionCoreSha256": "74f5f6d4ccf17abd3c01ce3e1aba26c64c8fac772715b4a3dd0e4e7f6ae82dc2",
         "transitionTransactionId": "transaction-10",
         "approverRole": "recovery-intent",
         "approverAuthoritySetId": "recovery-set-v1",
@@ -124,7 +176,7 @@
       },
       {
         "approvalSchemaVersion": "olympus-authority-approval/1",
-        "authorityTransitionCoreSha256": "b90150250cb3d4fe5dff21caea3bd656609030056d5c1bacd8b335fabbd4ceae",
+        "authorityTransitionCoreSha256": "74f5f6d4ccf17abd3c01ce3e1aba26c64c8fac772715b4a3dd0e4e7f6ae82dc2",
         "transitionTransactionId": "transaction-10",
         "approverRole": "recovery-intent",
         "approverAuthoritySetId": "recovery-set-v1",
@@ -134,7 +186,7 @@
       },
       {
         "approvalSchemaVersion": "olympus-authority-approval/1",
-        "authorityTransitionCoreSha256": "b90150250cb3d4fe5dff21caea3bd656609030056d5c1bacd8b335fabbd4ceae",
+        "authorityTransitionCoreSha256": "74f5f6d4ccf17abd3c01ce3e1aba26c64c8fac772715b4a3dd0e4e7f6ae82dc2",
         "transitionTransactionId": "transaction-10",
         "approverRole": "checkpoint-preauthorization",
         "approverAuthoritySetId": "checkpoint-set-v2",
@@ -144,7 +196,7 @@
       },
       {
         "approvalSchemaVersion": "olympus-authority-approval/1",
-        "authorityTransitionCoreSha256": "b90150250cb3d4fe5dff21caea3bd656609030056d5c1bacd8b335fabbd4ceae",
+        "authorityTransitionCoreSha256": "74f5f6d4ccf17abd3c01ce3e1aba26c64c8fac772715b4a3dd0e4e7f6ae82dc2",
         "transitionTransactionId": "transaction-10",
         "approverRole": "checkpoint-preauthorization",
         "approverAuthoritySetId": "checkpoint-set-v2",
@@ -171,34 +223,58 @@
       "policyIndexSha256": "5555555555555555555555555555555555555555555555555555555555555555",
       "retentionTombstoneIndexSha256": "6666666666666666666666666666666666666666666666666666666666666666",
       "testEvidenceIndexSha256": "7777777777777777777777777777777777777777777777777777777777777777",
-      "authorityTransitionCoreSha256": "b90150250cb3d4fe5dff21caea3bd656609030056d5c1bacd8b335fabbd4ceae",
+      "forwardRecovery": {
+        "forwardRecoverySchemaVersion": "olympus-artifact-forward-recovery/1",
+        "currentPredecessor": {
+          "collectionId": "fixture-archive",
+          "generationSequence": "9",
+          "generationId": "generation-9",
+          "rootSha256": "9999999999999999999999999999999999999999999999999999999999999999"
+        },
+        "abandonedContentHead": {
+          "collectionId": "fixture-archive",
+          "generationSequence": "9",
+          "generationId": "generation-9",
+          "rootSha256": "9999999999999999999999999999999999999999999999999999999999999999"
+        },
+        "restoreContentFrom": {
+          "collectionId": "fixture-archive",
+          "generationSequence": "7",
+          "generationId": "generation-7-safe",
+          "rootSha256": "7777777777777777777777777777777777777777777777777777777777777777"
+        },
+        "recoveryPolicySha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "reason": "checkpoint-evidence-compromise",
+        "cutoffSha256": "a3cf6de690b612d5feceef58897c3b03f14e6d73ea5bd53b003dc1fefcc280c0"
+      },
+      "authorityTransitionCoreSha256": "74f5f6d4ccf17abd3c01ce3e1aba26c64c8fac772715b4a3dd0e4e7f6ae82dc2",
       "authorityApprovalSha256s": [
-        "7ebd0165a50395f2970022864bc4c45b84ad3fed5dea9ab62484dcb35eb56d59",
-        "946ac2073f8ebdcaf3398b56456b5ad136dc605217769c78978a762fb97f19d0",
-        "c73cc1c65f6e62d9e95b89d20744c5948c09f3a6fdbbff19cc2f5ce7b5cbc80e",
-        "a374bb932467f5a484b84a76273937f404ba7090453d921f4d17ced7afd86feb"
+        "91629639f4654540d4396b640163a08d49ba7d48bae9daa62fded6012002b94a",
+        "44f755e28ff8d4033250909dd8e8e63ee41ff36dbf902ac45ba04ddb8c8a0b82",
+        "3fd372dddd400cfb234c956a61b728d4c2e1d14287bceccfcc6748f1888657cb",
+        "3877ff97ce6a4860e194d53814a3656fa81c7a0d7d29cead4128571461e00bc7"
       ]
     }
   },
   "expectedSha256": {
-    "nextRootCore": "504452155df2692a7ce6952d291a37397baf6daa3e3c40eee6bddbeb692fc972",
-    "cutoff": "b4ad43bab9bd5aeaf0ad80be3cd4401e4629bf6e53b0e419215a0416f7ced2be",
-    "replacementProof": "59ab3e1eb57c4c2155c8a0a4950f37f1823409fab2886db11ccaffb8cf0fe2d0",
-    "authorityTransitionCore": "b90150250cb3d4fe5dff21caea3bd656609030056d5c1bacd8b335fabbd4ceae",
+    "nextRootCore": "9002dc4e40bfa34600b6c897808601baea7db15d5c055c352c35538ca82a0099",
+    "cutoff": "a3cf6de690b612d5feceef58897c3b03f14e6d73ea5bd53b003dc1fefcc280c0",
+    "replacementProof": "d109409d3c006a038c5b71a6c229e99e1a2555acb3b68cc59370129948e3ff76",
+    "authorityTransitionCore": "74f5f6d4ccf17abd3c01ce3e1aba26c64c8fac772715b4a3dd0e4e7f6ae82dc2",
     "authorityApprovals": [
-      "7ebd0165a50395f2970022864bc4c45b84ad3fed5dea9ab62484dcb35eb56d59",
-      "946ac2073f8ebdcaf3398b56456b5ad136dc605217769c78978a762fb97f19d0",
-      "c73cc1c65f6e62d9e95b89d20744c5948c09f3a6fdbbff19cc2f5ce7b5cbc80e",
-      "a374bb932467f5a484b84a76273937f404ba7090453d921f4d17ced7afd86feb"
+      "91629639f4654540d4396b640163a08d49ba7d48bae9daa62fded6012002b94a",
+      "44f755e28ff8d4033250909dd8e8e63ee41ff36dbf902ac45ba04ddb8c8a0b82",
+      "3fd372dddd400cfb234c956a61b728d4c2e1d14287bceccfcc6748f1888657cb",
+      "3877ff97ce6a4860e194d53814a3656fa81c7a0d7d29cead4128571461e00bc7"
     ],
     "authorityApprovalPreimages": [
-      "667e1198299f8431958a7e2e47e28943db2d861f2ab5e9ef441f0ec1b5bdd2ff",
-      "4e5f6cef0103699c2a914746666692078afbd3c5b5952c1a0151bfe284f67d47",
-      "6583175eb0eca661bc737581b417b33779439cc03f0ffd8b8826a47e530a10fe",
-      "b30f2afa8374b77f7c4b9f157b141e31a0aee507f47ed01fe25a8cabf4545400"
+      "dbb3d0306833ba6264f23750d5f5d6034e48075376d83a4345115b2c0ee0a786",
+      "1e5ec713254acdaec9d1bea08c402c0447e09969004d1dd6b82975c6ad41058d",
+      "dedd8c2eb4a54f3995277864aad3f37cc677d72bf03e53e54469c0e10a706c74",
+      "25f9847ba35f580218e744d05bb0264edc43f3e12ab2eebac7bfeb071dbadc9c"
     ],
-    "finalRoot": "62aa3c815e82e1bd63a3222d3727232696e439e587282d604ee2c38343bf0bc8",
-    "replacementProofPreimage": "4cdeaff2c06304c5a091c36d411c2dc6d4630d1e9da1a0b4c81e8656b0e52ff4",
-    "finalRootPreimage": "73fa8ca010fed670bb7dbf0cb2a85b192c5e3b506dbb8ef0ee82033fb5356d9c"
+    "finalRoot": "0447b1721919b53e204c3a65335178c755638e51e5b3708498bf0c6929fec67f",
+    "replacementProofPreimage": "fda43b98d5d72bf978c9b2e35e236017074d7c78727acca7d2812c5212572a7f",
+    "finalRootPreimage": "acb648ced6125dd61c7ba0835810294e4ec4e8f553d39b703162e31e1e7576b2"
   }
 }

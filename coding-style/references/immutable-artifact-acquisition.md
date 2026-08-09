@@ -79,7 +79,7 @@ fields, rejecting every missing or extra field:
 | Field | Contract |
 | --- | --- |
 | `rootSchemaVersion` | Fixed versioned root schema identifier. |
-| `rootType` | `ordinary`, `authority-transition`, or `forward-recovery`; the selected type controls the one permitted conditional object. |
+| `rootType` | `ordinary` or `authority-transition`; this selects the signing-authority path independently of whether content is forward-recovered. |
 | `collectionId` | Stable trust-domain identifier. |
 | `generationSequence` | Canonical ASCII decimal string matching `0|[1-9][0-9]*`; never a JSON number. |
 | `generationId` | Unique immutable generation identifier. |
@@ -91,13 +91,44 @@ fields, rejecting every missing or extra field:
 | `policyIndexSha256` | Digest of the active signing, checkpoint, recovery, and optional time policies. |
 | `retentionTombstoneIndexSha256` | Digest of the retention, supersession, revocation, and tombstone set. |
 | `testEvidenceIndexSha256` | Digest of the exact test and restore evidence set. |
-| `forwardRecovery` | Present only for `forward-recovery`; it binds the current predecessor, the earlier safe content head, abandoned head, recovery authorization digests, and reason. Otherwise absent. |
+| `forwardRecovery` | Always present. It is `null` when content advances normally, or the exact forward-recovery object below when this generation restores safe content. |
 
 `nextRootCore` explicitly excludes authority-transition, approval,
 preauthorization, receipt, signature-envelope, and final-root-digest links. An
-ordinary or forward-recovery final root is the corresponding core fields. An
-authority-transition final root copies the core fields and adds only
-`authorityTransitionCoreSha256` and ordered `authorityApprovalSha256s`.
+ordinary final root without recovery is the corresponding core fields. An
+ordinary final root with recovery adds only ordered
+`forwardRecoveryAuthorizationSha256s`; each referenced authorization binds the
+exact `nextRootCore` digest. An authority-transition final root, with or without
+forward recovery, copies the core fields and adds only
+`authorityTransitionCoreSha256` and ordered `authorityApprovalSha256s`. For a
+combined authority transition and forward recovery, the recovery-intent
+approvals over the authority core authorize the recovery; the earlier
+`nextRootCore` must not link forward to them.
+
+A non-null `forwardRecovery` contains exactly these fields:
+
+```text
+forwardRecoverySchemaVersion, currentPredecessor, abandonedContentHead,
+restoreContentFrom, recoveryPolicySha256, reason, cutoffSha256
+```
+
+Require
+`forwardRecoverySchemaVersion="olympus-artifact-forward-recovery/1"`. Each
+head uses the exact head-tuple schema. `currentPredecessor` and
+`abandonedContentHead` equal the root's accepted predecessor;
+`restoreContentFrom` is an earlier accepted safe head in the same collection;
+`reason` is a non-empty policy-bounded code; and `cutoffSha256` is either `null`
+or the digest of the exact applicable cutoff. The object carries substantive
+recovery state only. It contains no approval, authorization, preauthorization,
+signature, receipt, authority-core, or final-root link.
+
+This makes the two dimensions composable: `rootType="ordinary"` with a
+non-null recovery object is a catalog-signer-authorized forward recovery;
+`rootType="authority-transition"` with a non-null recovery object is an
+authority transition that also restores safe content. A cutoff covering
+accepted content or current-head evidence requires the latter object; `null`
+or omission fails closed. An ordinary root with `forwardRecovery=null` is the
+normal successor after either recovery path.
 Detached signatures cover:
 
 ```text
@@ -208,7 +239,9 @@ current head. Its `forwardRecovery` object binds:
 
 - the exact current predecessor and abandoned content head;
 - `restoreContentFrom`, the complete previously accepted safe content tuple;
-- the recovery-policy and authorization-record digests;
+- the recovery-policy digest; the final root separately binds the ordered
+  authorization-record digests for an ordinary-authority recovery, while an
+  authority transition is authorized by its later recovery-intent approvals;
 - the reason and any inclusive compromise cutoff; and
 - the fact that manifests and content are restored from the safe tuple while
   lifecycle and history continue from the current head.
@@ -401,7 +434,8 @@ exactly the named subject-to-replacement change; and
 nextRootCore.generationSequence`.
 
 For active catalog-signer compromise that covers accepted generations, the
-transition must also use forward recovery from a bound last-safe content tuple.
+transition must use `rootType="authority-transition"` and a non-null
+`forwardRecovery` that restores from the bound last-safe content tuple.
 Unsafe cutoff-covered content cannot become safe because replacement keys sign
 it. Missing or altered recovery intent, one checkpoint preauthorization, an
 insufficient recovery quorum, old-key co-signing as a prerequisite, or recovery
