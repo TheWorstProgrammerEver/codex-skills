@@ -7,6 +7,13 @@ file, or checksum-derived name is not proof that its contents are trusted.
 ## Contents
 
 - [Pin The Artifact Contract](#pin-the-artifact-contract)
+- [Authenticate Long-Lived Catalogs](#authenticate-long-lived-catalogs)
+- [Advance One Exact Accepted Head](#advance-one-exact-accepted-head)
+- [Recover Content Without Rolling Back](#recover-content-without-rolling-back)
+- [Bound Signing Authority By Sequence](#bound-signing-authority-by-sequence)
+- [Recover A Lost Or Compromised Authority](#recover-a-lost-or-compromised-authority)
+- [Rotate Checkpoint And Recovery Authorities](#rotate-checkpoint-and-recovery-authorities)
+- [Preserve And Restore The Trust Evidence](#preserve-and-restore-the-trust-evidence)
 - [Keep Cache States Distinct](#keep-cache-states-distinct)
 - [Serialize By Content Identity](#serialize-by-content-identity)
 - [Validate Resume Responses](#validate-resume-responses)
@@ -37,6 +44,454 @@ count, validate every target against an allowlist and scheme policy, and keep
 the original pinned length and digest authoritative. Disable transparent
 content transformations unless the checksum contract explicitly covers the
 transformed representation.
+
+## Authenticate Long-Lived Catalogs
+
+A collision-resistant digest proves that bytes match the object that names the
+digest. It does not prove who authorized that object. If an attacker can replace
+both an archive payload and its adjacent checksum or manifest, the replacement
+is self-consistent but unauthenticated. Treat payload integrity, catalog
+authenticity, and accepted-head freshness as three separate gates.
+
+Use a versioned canonical catalog object that closes over the complete
+collection. Its stable artifact-ID-to-manifest-digest map must transitively bind
+every payload, dependency, licence record, derivative recipe and parent,
+runtime, test fixture and result, retention or tombstone record, and backup
+record. Each manifest must in turn bind exact byte lengths and collision-
+resistant digests. A local catalog signature attests that the archive custodian
+accepted that evidence; it does not invent an upstream publisher signature.
+Represent an unsigned upstream release with `upstreamSignatureStatus=absent`
+or an equivalent explicit provenance limit while still requiring local custody
+authentication.
+
+### Canonical signed object
+
+Choose one canonical encoding and one domain-separated signature preimage for
+each version. The interoperable profile used by this guidance is RFC 8785 JSON
+Canonicalization Scheme (JCS), SHA-256 object identities, and detached
+signatures. A profile may select another reviewed signing product or algorithm,
+but it must preserve the same object, lifecycle, checkpoint, and recovery
+semantics and must never rely on a serializer's incidental output.
+
+Schema version 1 defines a signature-free `nextRootCore` with exactly these
+fields, rejecting every missing or extra field:
+
+| Field | Contract |
+| --- | --- |
+| `rootSchemaVersion` | Fixed versioned root schema identifier. |
+| `rootType` | `ordinary`, `authority-transition`, or `forward-recovery`; the selected type controls the one permitted conditional object. |
+| `collectionId` | Stable trust-domain identifier. |
+| `generationSequence` | Canonical ASCII decimal string matching `0|[1-9][0-9]*`; never a JSON number. |
+| `generationId` | Unique immutable generation identifier. |
+| `previousRootSha256` | Exact predecessor root digest, or the policy-defined genesis value. |
+| `creationTime` | Provenance only; it is not an authorization oracle. |
+| `trustPolicyVersion` | Exact policy version active for this proposed root. |
+| `artifactManifestDigests` | Complete stable-artifact-ID-to-manifest-SHA-256 map in JCS key order. |
+| `schemaIndexSha256` | Digest of all active schema identities. |
+| `policyIndexSha256` | Digest of the active signing, checkpoint, recovery, and optional time policies. |
+| `retentionTombstoneIndexSha256` | Digest of the retention, supersession, revocation, and tombstone set. |
+| `testEvidenceIndexSha256` | Digest of the exact test and restore evidence set. |
+| `forwardRecovery` | Present only for `forward-recovery`; it binds the current predecessor, the earlier safe content head, abandoned head, recovery authorization digests, and reason. Otherwise absent. |
+
+`nextRootCore` explicitly excludes authority-transition, approval,
+preauthorization, receipt, signature-envelope, and final-root-digest links. An
+ordinary or forward-recovery final root is the corresponding core fields. An
+authority-transition final root copies the core fields and adds only
+`authorityTransitionCoreSha256` and ordered `authorityApprovalSha256s`.
+Detached signatures cover:
+
+```text
+UTF8("olympus-artifact-catalog-root/v1") || 0x00 || JCS(finalRoot)
+```
+
+The signature envelope records its schema version, algorithm, key ID, complete
+public-key fingerprint, signed-root SHA-256, and base64url-without-padding
+signature. Verify the exact canonical bytes, digest, domain, algorithm, key,
+fingerprint, role, sequence authorization, and threshold before treating the
+root as authenticated. Do not accept a signature over a pretty-printed file,
+only the manifest map, or an adjacent checksum sidecar as equivalent.
+
+### Independent trust anchors
+
+Distribute the bootstrap trust-policy digest, catalog public keys, checkpoint
+authority sets, and recovery-authority sets outside the mutable archive. Use
+offline recovery documentation, independently administered read-only media,
+or another authenticated configuration channel. A copy inside the archive can
+aid reconstruction but cannot bootstrap trust in that same archive. Restore
+must require no signing secret: public keys, fingerprints, policies, signed
+history, and checkpoint evidence are sufficient for verification.
+
+Each trust policy must bind:
+
+- key ID, complete public-key fingerprint, algorithm and signature domain;
+- collection and role, with inclusive generation-sequence authorization
+  bounds;
+- checkpoint- and recovery-authority set IDs, ordered members, role-specific
+  thresholds, and activation boundaries;
+- planned rotation, retirement, expiry and emergency-replacement rules;
+- inclusive compromise or revocation cutoffs and any last-safe content head;
+  and
+- whether the optional trusted-calendar-time profile is disabled or names its
+  approved time sources and limits.
+
+Reject an unknown algorithm, key, fingerprint, role, policy, set, threshold,
+or trust domain. Archive access credentials, storage credentials, and catalog
+signing or recovery authority are separate capabilities; never put private
+signing material in manifests or backups merely to make restore convenient.
+
+## Advance One Exact Accepted Head
+
+A valid signature chain does not prevent replay of an older validly signed
+root. Maintain at least two independently administered accepted-head
+checkpoints. The head tuple is exactly:
+
+```text
+H = (collectionId, generationSequence, generationId, rootSha256)
+```
+
+One promotion owner serializes every transition for a collection. Give each
+transaction a collection-global ID and persist its immutable proposal before
+checkpoint mutation. A transaction ID may resume only the byte-identical
+pending proposal; reuse after acceptance or abort, or with another predecessor,
+successor, role, or policy, fails closed.
+
+Use this state transition for `H_N` to `H_N+1`:
+
+1. Read the active collection and every checkpoint authoritatively. Require
+   exact equality on `H_N`, the active policy, and authority sets.
+2. Verify that the proposed sequence is exactly arbitrary-precision `N+1`, its
+   `previousRootSha256` is `H_N.rootSha256`, and no other generation ID or root
+   digest claims that sequence. Commit it immutably as pending without moving
+   the active pointer.
+3. At each checkpoint, perform an exact-predecessor compare-and-swap from
+   `H_N` to the identical `H_N+1` transaction. After durable persistence, each
+   checkpoint authority signs a location-specific receipt that binds the
+   collection, complete prior and new head tuples, transaction ID, authority
+   set ID, policy version, key ID, fingerprint, and decision.
+4. Re-read both independent checkpoints and receipts. Activate only when every
+   required receipt is valid and agrees byte-for-byte on the exact new head,
+   predecessor, transaction, policy and authority set.
+5. Promotion, replication, periodic scrub, and restore certification require
+   the presented active tuple to equal the jointly checkpointed tuple and its
+   matching receipt set. A root signature or relative sequence comparison is
+   insufficient.
+
+Checkpoint receipts are durable protocol evidence, not mutable log lines.
+Back up their signed bytes and the corresponding checkpoint records. A verifier
+must reject replay of `H_N` after `H_N+1` is accepted, a signed but unaccepted
+pending successor, a same-sequence or same-generation fork, skipped sequence,
+missing or mismatched receipts, a mixed authority set, and an unknown
+transaction.
+
+### Deterministic partial-failure reconciliation
+
+If no checkpoint advanced, the owner may resume or abort the exact pending
+transaction. If one checkpoint advanced, or both advanced but activation or a
+receipt write is uncertain, freeze later promotion, replication certification,
+scrub certification, and restore certification. Preserve all evidence and
+authoritatively re-read every location.
+
+Only the unique byte-identical successor of the former common head may roll
+forward. Reverify its root, policy, transaction and existing receipt, advance
+the remaining checkpoint from the exact predecessor, recover only an
+independently provable missing receipt, then activate after the complete receipt
+set agrees. A competing pending successor, fork, unknown checkpoint state,
+missing exact evidence, or terminal transaction remains frozen. Never reconcile
+by lowering a checkpoint, silently accepting the old head, overwriting a
+different head, or creating a corrected root at the same sequence.
+
+## Recover Content Without Rolling Back
+
+Recovery is monotonic. To restore earlier safe content after accepting a bad or
+unusable head, create a new recovery-authorized generation that extends the
+current head. Its `forwardRecovery` object binds:
+
+- the exact current predecessor and abandoned content head;
+- `restoreContentFrom`, the complete previously accepted safe content tuple;
+- the recovery-policy and authorization-record digests;
+- the reason and any inclusive compromise cutoff; and
+- the fact that manifests and content are restored from the safe tuple while
+  lifecycle and history continue from the current head.
+
+The recovery quorum signs the exact forward-recovery authorization. Both
+checkpoints then advance normally and issue matching receipts for the new head.
+The abandoned root remains immutable history and cannot be reactivated. A
+normal successor must extend the recovery root, not the earlier content source.
+
+The required trace is:
+
+```text
+accepted H_N+1
+  -> recovery-authorized H_N+2 extending H_N+1 but restoring H_N content
+  -> ordinary H_N+3 extending H_N+2
+```
+
+Reject old `H_N+1` reactivation, a corrected `H_N+1` fork, skipped `H_N+2`, a
+future ordinary root that extends `H_N`, or any checkpoint decrease. This
+forward-only rule replaces a conventional rollback statement that would move
+the accepted head backward.
+
+## Bound Signing Authority By Sequence
+
+Do not decide signing authority from a controller's process clock or from a
+root's attacker-chosen `creationTime`. Compare canonical decimal sequences as
+arbitrary-precision non-negative integers: shorter digit length is smaller;
+equal lengths compare lexicographically. Reject every non-canonical spelling.
+
+Use authenticated lifecycle transitions to give each catalog signer and
+authority set inclusive sequence bounds. A planned rotation at sequence `R`
+binds and is signed according to the old and new policy, authorizes the old key
+through `R`, and authorizes the new key from `R+1`. Planned expiry or retirement
+stops new issuance after its accepted boundary without invalidating history
+that was signed and accepted inside the key's authorized window. A later
+old-key root fails even if its `creationTime` is backdated.
+
+A compromise or revocation cutoff can invalidate subject evidence from a
+sequence boundary onward. Preserve covered signatures as immutable historical
+evidence but do not count them toward authentication, checkpoint acceptance,
+recovery quorum, or replacement bootstrap. Apply the inclusive cutoff contract
+defined below; equality is covered.
+
+### Optional calendar-time profile
+
+Sequence authorization is the default. If policy also gates calendar time, it
+must pin approved time-source identities, store a non-decreasing trusted-time
+floor outside process memory, resynchronize after process restart and reboot,
+bound permitted forward steps and source divergence, and require matching
+authenticated attestations from both checkpoint authorities. Withhold receipts
+and freeze promotion when sources are missing or unapproved, the persisted
+floor regresses, restart cannot re-establish confidence, a step exceeds policy,
+or checkpoint attestations disagree. Wall-clock timestamps remain provenance
+when this complete profile is not active.
+
+## Recover A Lost Or Compromised Authority
+
+Emergency replacement must not require the lost catalog key and must not grant
+recovery members ordinary catalog-signing power. The recovery-authority quorum
+signs matching exact replacement or cutoff intents, both checkpoint authorities
+preauthorize the same transition, and the recovery quorum plus replacement
+catalog key sign the exact next transition root. The following root must be an
+ordinary successor signed only under the replacement catalog policy.
+
+Build the evidence in this acyclic order:
+
+```text
+nextRootCore + optional cutoff
+  -> replacementProof -> detached replacement-proof signature
+  -> authorityTransitionCore
+  -> ordered role approvals and both checkpoint preauthorizations
+  -> final transition root
+  -> detached recovery-quorum and replacement-key signatures
+  -> complete-new-checkpoint-set receipts
+```
+
+No earlier object may contain the digest, signature, receipt, approval, or
+preauthorization of a later object. Require exact schemas: reject extra,
+missing, self-referential, circular, or out-of-stage fields rather than ignoring
+them.
+
+### Replacement proof and cutoff
+
+The RFC 8785 JCS `olympus-authority-replacement-proof/1` object contains
+exactly:
+
+```text
+replacementProofSchemaVersion, proofPurpose, collectionId,
+transitionTransactionId, priorHead, activationBoundarySequence,
+subjectRole, subjectKeyId, subjectFingerprint,
+replacementRole, replacementKeyId, replacementFingerprint,
+oldCheckpointAuthoritySetId, newCheckpointAuthoritySetId,
+oldRecoveryAuthoritySetId, newRecoveryAuthoritySetId,
+oldTrustPolicySha256, newTrustPolicySha256, nextRootCoreSha256,
+cutoffSha256, lastTrustedHead, suspectHead,
+affectedEvidenceSha256s, reconstructedChainSha256
+```
+
+Require
+`replacementProofSchemaVersion="olympus-authority-replacement-proof/1"` and
+`proofPurpose="replacement-key-possession"`. The full heads use the exact head
+tuple schema. Outside an affected-evidence transition, the last four fields are
+respectively `null`, `null`, `[]`, and `null`. `cutoffSha256` is `null` if and
+only if the authority core cutoff is `null`; otherwise it is SHA-256 over the
+cutoff JCS bytes. The proof contains no authority-core or later-object link.
+
+The replacement key signs exactly:
+
+```text
+UTF8("olympus-authority-replacement-proof/v1") || 0x00
+  || JCS(replacementProof)
+```
+
+Its detached envelope contains exactly
+`signatureSchemaVersion="olympus-authority-replacement-proof-signature/1"`,
+`algorithm="Ed25519"`, `keyId`, `publicKeyFingerprint`,
+`signedReplacementProofSha256`, and a base64url-without-padding `signature`.
+The key and fingerprint must match both the proof and the member pinned for
+`replacementRole` in the new policy. The core binds only the proof digest; the
+proof and core never bind the later envelope.
+
+A non-null inline `olympus-authority-evidence-cutoff/1` object contains exactly:
+
+```text
+cutoffSchemaVersion, collectionId, transitionTransactionId,
+declaredAtPriorHead, subjectRole, subjectKeyId, subjectFingerprint,
+reason, comparison, firstAffectedSequence, evidenceScope
+```
+
+Require `reason` to be `compromise` or `revocation`,
+`comparison="effective-sequence-gte"`, and
+`evidenceScope="all-authority-evidence-signed-by-subject"`. Compare the
+canonical `firstAffectedSequence` inclusively and at arbitrary precision.
+Resolve subject evidence to one effective sequence as follows:
+
+| Evidence | Effective sequence |
+| --- | --- |
+| Catalog-root signature | The signed root's `generationSequence`. |
+| Checkpoint receipt | The receipt's accepted new-head sequence. |
+| Checkpoint preauthorization | The uniquely digest-linked candidate transition sequence. |
+| Recovery authorization or intent | The uniquely digest-linked candidate or activation sequence. |
+| Authority approval | The bound authority core's activation sequence. |
+| Replacement proof | Its activation boundary sequence. |
+| Policy or signer-lifecycle signature | The uniquely bound activation boundary. |
+
+Evidence without exactly one authenticated mapping is invalid and cannot prove
+unaffected history. At cutoff `B`, matching evidence at `B-1` is unaffected and
+matching evidence at `B` is covered.
+
+### Exact authority transition core
+
+The signature-free `authorityTransitionCore` contains exactly:
+
+```text
+schemaVersion, collectionId, priorHead, subjectRole, subjectKeyId,
+subjectFingerprint, oldCheckpointAuthoritySetId,
+newCheckpointAuthoritySetId, oldRecoveryAuthoritySetId,
+newRecoveryAuthoritySetId, oldTrustPolicySha256, newTrustPolicySha256,
+activationBoundarySequence, replacementKeyId, replacementFingerprint,
+replacementProofSha256, cutoff, transitionTransactionId,
+nextRootCoreSha256
+```
+
+Only the affected-evidence profile may also contain `lastTrustedHead`,
+`suspectHead`, ordered `affectedEvidenceSha256s`, and
+`reconstructedChainSha256`. It contains no approval, preauthorization,
+signature, receipt, final-root digest, or other later-object link.
+
+An authority approval contains exactly `approvalSchemaVersion`,
+`authorityTransitionCoreSha256`, `transitionTransactionId`, `approverRole`,
+`approverAuthoritySetId`, `approverKeyId`, `approverFingerprint`, and
+`decision="approve"` before detached signing. Recovery intents and checkpoint
+preauthorizations are approval instances whose `approverRole` and authority set
+identify the required role; they bind the identical authority-core digest and
+transaction. Sign each approval over
+`UTF8("olympus-authority-approval/v1") || 0x00 || JCS(approval)` and verify the
+signer against that role and authority set. The final transition root copies the
+exact
+`nextRootCore` fields and adds the authority-core digest plus an ordered list of
+approval and preauthorization object digests. Policy defines the role order;
+array order is signed and therefore significant.
+
+Require field-for-field equality across the next-root core, proof, cutoff,
+authority core, policies, approvals and final root for collection, transaction,
+head, subject and replacement roles/keys/fingerprints, authority-set IDs,
+policy digests, activation boundary, cutoff digest, and affected-evidence
+context. The old policy and sets come from `priorHead`; the new policy permits
+exactly the named subject-to-replacement change; and
+`activationBoundarySequence = priorHead.sequence + 1 =
+nextRootCore.generationSequence`.
+
+For active catalog-signer compromise that covers accepted generations, the
+transition must also use forward recovery from a bound last-safe content tuple.
+Unsafe cutoff-covered content cannot become safe because replacement keys sign
+it. Missing or altered recovery intent, one checkpoint preauthorization, an
+insufficient recovery quorum, old-key co-signing as a prerequisite, or recovery
+authority on an ordinary root fails closed.
+
+## Rotate Checkpoint And Recovery Authorities
+
+Checkpoint and recovery keys are trust anchors with lifecycles, not permanent
+exceptions. Version every authority set and bind its set ID, ordered members,
+roles, key fingerprints, threshold, activation boundary, and cutoffs in the
+trust policy. Use a recovery quorum such as two of three so one lost member does
+not destroy availability and no one member has unilateral power.
+
+Use the same acyclic authority-transition schema for planned or emergency
+replacement of exactly one checkpoint or recovery member. Planned replacement
+includes valid old-subject and new-subject proof. Emergency replacement excludes
+the lost or compromised subject and requires the unchanged role-specific
+threshold plus replacement proof. Emergency checkpoint replacement requires
+the unaffected checkpoint peer and unaffected recovery quorum. Emergency
+recovery-member replacement requires the unchanged recovery threshold and both
+checkpoints. After either transition, the complete new checkpoint set must issue
+matching receipts for the exact next head before activation.
+
+Reject partial or mixed-set migration, removed-key reuse after the boundary,
+competing transitions, multiple simultaneous subjects, insufficient unchanged
+quorum, or receipts initialized from the compromised subject. If the required
+unaffected threshold cannot be formed, freeze or start a separately named trust
+domain; do not claim that continuity survived.
+
+### Last-trusted-boundary recovery
+
+If a new cutoff retroactively covers a checkpoint receipt, recovery approval,
+or lifecycle statement used to establish current `H_N`, retain the subject's
+signature as evidence but stop counting it. Freeze the collection and:
+
+1. Identify the greatest fully trusted head `H_T` using only unaffected
+   evidence.
+2. Reconstruct exactly one monotonic authenticated chain from `H_T` to the
+   suspect tip `H_N`, again without counting covered evidence or using it to
+   initialize replacement checkpoints.
+3. Build one `H_N+1` authority transition that extends exact `H_N`, binds
+   `H_T`, `H_N`, the ordered affected-evidence digests and reconstructed-chain
+   digest, and forward-recovers content from `H_T`.
+4. Require the unaffected quorum, replacement proof, new policy and matching
+   receipts from the complete new checkpoint set before activation.
+
+If `H_T`, exact `H_N`, the unique chain, or the unaffected threshold cannot be
+established, remain frozen or explicitly name a new trust domain. Never hide an
+unauthenticated reset behind an operator override, lower a checkpoint, or allow
+the affected key to bootstrap its own replacement. A crash during migration
+may resume only the same byte-identical pending transaction and must roll
+forward deterministically.
+
+## Preserve And Restore The Trust Evidence
+
+Back up payloads, manifests, canonical roots, detached signatures, lifecycle
+transitions, recovery records, authority policies, transaction records,
+checkpoint records, and all per-location receipts as immutable history. Keep a
+verified copy of each checkpoint and the bootstrap public trust anchors in
+independent administrative and failure domains. Do not place the only trusted
+copy next to the mutable archive, and do not back up private signing keys merely
+to make routine restore possible. Document separately whether recovery signing
+keys are offline, escrowed, hardware-held, or intentionally non-recoverable.
+
+At promotion, replication, periodic scrub, and restore, start from the
+independently distributed bootstrap anchor and verify the unique policy,
+lifecycle, root, transaction, signature, and receipt chain. Require the
+presented active tuple to equal the exact accepted head in every current
+checkpoint and matching receipt. Then verify manifest closure and payload
+bytes. Fail closed when only a self-consistent payload-plus-checksum set
+remains, when trust evidence is missing or self-referential, or when the chain
+is stale, forked, downgraded, pending, partially migrated, or unknown.
+
+Keep golden canonicalization and state-machine fixtures with the schema. The
+repository fixture at
+`coding-style/tests/fixtures/authenticated-manifest-contract.json` and its
+contract test demonstrate the exact version-1 object boundaries; production
+schemas should carry equivalent fixtures for every supported implementation.
+They
+must cover exact JCS bytes and domain-separated preimages for `nextRootCore`,
+cutoff, replacement proof, authority core, ordered approvals, and final root;
+then independently alter, omit, add, reorder, or introduce a later-object link
+at every stage and require rejection. Also cover payload-plus-manifest
+substitution; `N` to `N+1` acceptance and replay of `N`; pending and forked
+successors; one-checkpoint partial advancement; forward content recovery and
+the following ordinary successor; sequence-bound signer retirement; catalog-
+signer loss and compromise; planned and emergency checkpoint and recovery-
+member replacement; inclusive cutoff equality; last-trusted-boundary recovery;
+controller restart, reboot and clock regression; loss of the primary archive;
+and an unsigned upstream release.
 
 ## Keep Cache States Distinct
 
@@ -215,6 +670,15 @@ At minimum, prove:
 | Scenario | Required evidence |
 | --- | --- |
 | Catalog and cache identity | Mutable releases, malformed digests, mismatched checksum sources, and unpinned URLs fail before cache mutation; equivalent pinned content shares one digest-keyed entry. |
+| Payload plus manifest substitution | Replacing payloads and recomputing every adjacent checksum still fails the independently anchored catalog-root signature and accepted-head gates. |
+| Canonical authority graph | Exact golden JCS encodings and domain-separated preimages pass; wrong transaction, head, role/key, policy/set, root, cutoff, context, approval order, omitted/extra field, or cyclic/later-object link fails before commit. |
+| Accepted-head advancement | Exact `N` to `N+1` compare-and-swap yields matching two-location receipts; replay of signed `N`, an unaccepted pending successor, a same-sequence/generation fork, unknown transaction, or receipt mismatch fails. One-location advancement freezes until the byte-identical unique successor rolls forward. |
+| Monotonic content recovery | Accepted `H_N+1` advances to recovery-authorized `H_N+2` that restores `H_N` content, then ordinary `H_N+3` extends the recovery root. Abandoned-head reactivation, corrected same-sequence fork, skipped successor, or checkpoint decrease fails. |
+| Catalog-signer lifecycle | Planned rotation preserves sequence-authorized history but rejects later old-key issuance despite a backdated timestamp. Loss or compromise requires matching recovery-quorum intent, both checkpoint preauthorizations, quorum-plus-replacement transition signing, and the following ordinary replacement-signed root. |
+| Checkpoint and recovery authority lifecycle | Planned and emergency replacement each bind one exact subject, old/new sets and policies, replacement proof, cutoff and boundary. Emergency approval excludes the subject; partial or mixed-set receipts, removed-key reuse, unavailable unchanged quorum, or multiple subjects fail. |
+| Inclusive cutoff and last-trusted boundary | Evidence at `B-1` remains eligible and subject evidence at `B` is covered. A cutoff covering current-head evidence freezes, reconstructs one unaffected `H_T` to suspect `H_N` chain, and accepts only forward `H_N+1` with complete-new-set receipts; compromised bootstrap or ambiguous evidence fails. |
+| Restart and trusted time | Process/controller restart, reboot, wall-clock rollback or reset cannot change sequence authorization. An enabled calendar profile rejects lost confidence, regressed floors, excessive steps, unapproved sources, and checkpoint-attestation disagreement. |
+| Primary archive loss and unsigned upstream | Restore begins from independent anchors, checkpoints, receipts and backup, then proves exact head, manifest closure, bytes and format. An unsigned publisher release remains explicit while local custody authentication is required. |
 | Full download | Exact bytes, pinned length, whole-file checksum, and required format inspection pass before the final path appears. |
 | Interruption and resume | Only the validated prefix remains; the next request uses its exact offset and verifies the completed file from byte zero. |
 | Ignored `Range` | A resumed `200` truncates and safely restarts from zero rather than appending a full body. |

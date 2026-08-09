@@ -6,6 +6,6 @@
   "scripts": {
     "install:skills": "node scripts/install-skills.mjs",
     "list:skills": "node scripts/install-skills.mjs --list",
-    "test": "python3 -B -m unittest discover -s gh-address-comments/tests -p 'test_*.py' && python3 -B -m unittest discover -s gh-publish/tests -p 'test_*.py' && python3 -B -m unittest discover -s linear-agent-oauth/tests -p 'test_*.py'"
+    "test": "python3 -B -m unittest discover -s coding-style/tests -p 'test_*.py' && python3 -B -m unittest discover -s gh-address-comments/tests -p 'test_*.py' && python3 -B -m unittest discover -s gh-publish/tests -p 'test_*.py' && python3 -B -m unittest discover -s linear-agent-oauth/tests -p 'test_*.py'"
   }
 }
