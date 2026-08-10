@@ -11,6 +11,48 @@ Tests must clean up after themselves. A successful or failed test run should not
 - Apply Inversion of Control, Dependency Inversion, and Liskov Substitution principles to make tests meaningful without over-coupling them to implementation details.
 - Keep unit tests focused on domain behavior, parsing, state transitions, and adapter boundaries rather than incidental framework mechanics.
 
+## Host-Diagnostic Evidence Tests
+
+Exercise the production collector, topology resolver, normalizer, and reporting
+boundary together. Handing a report builder an already-classified device or
+effective setting does not prove that raw host evidence was scoped and merged
+correctly.
+
+At minimum, cover this matrix with generated host-neutral fixtures:
+
+| Scenario | Required evidence |
+| --- | --- |
+| Zero-discard root beside discard-capable loop and zram devices | Resolve `/` to its exact mount source and complete active block-device stack. Report discard as not advertised for that target; unrelated loop and zram capabilities remain observations only. Replace the target resolver with host-wide `any(discard > 0)` aggregation and require the assertion to fail. |
+| Zram reported by `swapon` as `TYPE=partition` | Normalize the canonical device identity as zram or memory-backed before classifying the write path. Report no disk-backed swap when it is the only active swap. Replace normalization with `TYPE=partition` implies physical storage and require the assertion to fail. |
+| Persistent journald base file, later volatile drop-in, and an existing persistent journal directory | Feed the main file and drop-in through the production systemd-aware merge path and report the effective `Storage=volatile`. Keep the directory as corroborating evidence only. Replace the merge path with base-file-only parsing and require the assertion to fail. |
+
+- Keep raw command/file observations and derived conclusions separately
+  assertable. Include the resolved target, mount source, normalized device
+  family, topology identities, source status, effective configuration source,
+  and conclusion reason in the test result without copying native host paths.
+- Add incomplete and conflicting cases. A missing parent edge, ambiguous mount
+  source, failed virtual-device identity probe, or failed/partial systemd merge
+  must produce `unknown` or an explicit conflict, not a fallback positive or
+  negative claim.
+- Test layered block stacks, nested target paths, and device-mapper or RAID
+  fan-out when the product supports them. Assert that every required active
+  layer is evaluated and unrelated host devices cannot change the target
+  result.
+- For systemd-managed settings, use an isolated root or faithful merge fixture
+  that preserves main-file and drop-in precedence, reset assignments, and
+  masking rules. A hand-concatenated expected string is not evidence that the
+  production merge command or adapter selected the effective value.
+- Mutation-check the three central shortcuts independently: host-wide discard
+  aggregation, partition-equals-disk swap classification, and base-file-only
+  journald parsing. Each unsafe implementation must fail the scenario's
+  expected assertion for the intended reason.
+- Allocate every filesystem fixture under a test-created temporary root and
+  remove it in `finally`. Use only generated device names, paths, and contents;
+  never copy local device identifiers or host configuration into fixtures.
+
+Follow the collection and reporting contract in
+[`host-diagnostic-evidence.md`](host-diagnostic-evidence.md).
+
 ## Structured-Configuration Mutation Tests
 
 For a script or adapter that edits TOML, INI, YAML, a service file, or another

@@ -1,0 +1,32 @@
+{
+  "discard": {
+    "target": "/",
+    "mounts": [
+      { "target": "/", "source": "root-part" }
+    ],
+    "devices": [
+      { "id": "root-part", "parent": "root-disk", "family": "partition", "discardMaxBytes": 0 },
+      { "id": "root-disk", "parent": null, "family": "physical", "discardMaxBytes": 0 },
+      { "id": "loop-fixture", "parent": null, "family": "loop", "discardMaxBytes": 4294966784 },
+      { "id": "zram-fixture", "parent": null, "family": "zram", "discardMaxBytes": 2199023255040 }
+    ],
+    "expected": "not-advertised"
+  },
+  "swap": {
+    "swapon": [
+      { "name": "zram-fixture", "type": "partition" }
+    ],
+    "normalizedDevices": [
+      { "name": "zram-fixture", "family": "zram" }
+    ],
+    "expectedDiskBacked": false
+  },
+  "journald": {
+    "sources": [
+      { "kind": "main", "section": "Journal", "key": "Storage", "value": "persistent" },
+      { "kind": "drop-in", "section": "Journal", "key": "Storage", "value": "volatile" }
+    ],
+    "persistentDirectoryPresent": true,
+    "expected": "volatile"
+  }
+}
