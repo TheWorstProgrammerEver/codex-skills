@@ -26,6 +26,7 @@ Prefer scripts over one-off command sequences.
 
 - install dependencies if missing
 - ensure Docker Desktop is running on macOS
+- require an already running Docker Engine or compatible daemon on Linux
 - start local Supabase
 - disable Docker auto-restart for this project's Supabase containers
 - serve local Edge Functions
@@ -33,6 +34,8 @@ Prefer scripts over one-off command sequences.
 - start Vite with `--host 0.0.0.0`
 - generate ignored `public/config.local.json`
 - print app, Supabase API, Studio, Mailpit, and health endpoints for localhost and LAN
+
+Before promising the local Supabase, security, or visual sweep on a fresh host, run `npm install` and the starter's read-only `npm run preflight`. It verifies Docker daemon access and launches headless Playwright Chromium once so a downloaded browser with missing Linux shared libraries does not look ready. Prepare Linux with `npx playwright install --with-deps chromium`, or use `npx playwright install chromium` plus `sudo npx playwright install-deps chromium` when privileged host provisioning is explicitly authorized. Repository-scoped tasks should report failed prerequisites instead of silently installing host packages or starting services.
 
 `npm run all-done` should:
 
