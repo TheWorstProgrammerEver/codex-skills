@@ -9,13 +9,20 @@ It demonstrates auth, workspace membership, invitations, task CRUD, Row Level Se
 Prerequisites:
 
 - Node.js and npm
-- Docker Desktop
+- Docker Engine with a running daemon on Linux, or Docker Desktop on macOS
+- Playwright Chromium plus its OS runtime libraries
 
 From a fresh clone:
 
 ```sh
+npm install
+npm run preflight
 npm run get-going
 ```
+
+The read-only preflight checks Docker daemon access and launches headless Chromium once. Downloading Chromium with `npx playwright install chromium` does not install Linux shared-library dependencies. On a Linux development host, prepare both layers with `npx playwright install --with-deps chromium`, or install the browser and then run `sudo npx playwright install-deps chromium` as an explicitly authorized host-provisioning step.
+
+If this task is scoped to repository work, report a missing daemon or browser runtime as a host prerequisite. Do not silently install system packages, start services, or otherwise perform privileged host provisioning.
 
 The script installs npm dependencies when needed, opens and waits for Docker Desktop on macOS, starts the local Supabase stack, starts local Edge Functions, validates each enabled function route from `supabase/config.toml`, starts Vite on LAN, writes ignored local developer config to `public/config.local.json`, verifies reachable ports, and prints the localhost and LAN endpoint sheet.
 

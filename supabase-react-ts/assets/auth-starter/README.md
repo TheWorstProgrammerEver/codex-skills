@@ -12,15 +12,22 @@ It keeps the product surface intentionally small for now: auth, runtime config, 
 Prerequisites:
 
 - Node.js 22.12.0 or newer, with npm
-- Docker Desktop
+- Docker Engine with a running daemon on Linux, or Docker Desktop on macOS
+- Playwright Chromium plus its OS runtime libraries
 
 The committed Vite/Vitest/Supabase toolchain is pinned in `package.json` and `package-lock.json`. Refresh direct dependency versions and the Node engine floor together when deliberately updating the starter toolchain.
 
 From a fresh clone:
 
 ```sh
+npm install
+npm run preflight
 npm run get-going
 ```
+
+The read-only preflight checks Docker daemon access and launches headless Chromium once. Downloading Chromium with `npx playwright install chromium` does not install Linux shared-library dependencies. On a Linux development host, prepare both layers with `npx playwright install --with-deps chromium`, or install the browser and then run `sudo npx playwright install-deps chromium` as an explicitly authorized host-provisioning step.
+
+If this task is scoped to repository work, report a missing daemon or browser runtime as a host prerequisite. Do not silently install system packages, start services, or otherwise perform privileged host provisioning.
 
 The script installs npm dependencies when needed, opens and waits for Docker Desktop on macOS, starts the local Supabase stack, starts local Edge Functions, validates each enabled function route from `supabase/config.toml`, starts Vite on LAN, writes ignored local developer config to `public/config.local.json`, verifies reachable ports, and prints the localhost and LAN endpoint sheet.
 

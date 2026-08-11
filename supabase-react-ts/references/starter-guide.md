@@ -28,10 +28,11 @@ After scaffolding:
 
 1. Confirm Node.js is at least the auth starter's `package.json` `engines.node` floor.
 2. Run `npm install`.
-3. Confirm `README.ENV.md` describes the app's actual runtime config, Netlify build settings, hosted Supabase Auth settings, Edge Functions, migration expectations, and production smoke checks using placeholders only.
-4. Run `rg -n "Team Tasks|team tasks|teamTasks|team_tasks|team-tasks|__APP_" . --glob '!node_modules/**' --glob '!dist/**'`.
-5. Fix every unintended match. Do not leave starter/example names in app titles, package metadata, tests, scripts, fallback UI strings, Supabase config, or README files.
-6. Run `npm run lint`, `npm test`, and `npm run build`.
+3. Run `npm run preflight` before promising local Supabase, security, or visual validation. It is read-only and checks Docker daemon access plus a real Playwright Chromium launch.
+4. Confirm `README.ENV.md` describes the app's actual runtime config, Netlify build settings, hosted Supabase Auth settings, Edge Functions, migration expectations, and production smoke checks using placeholders only.
+5. Run `rg -n "Team Tasks|team tasks|teamTasks|team_tasks|team-tasks|__APP_" . --glob '!node_modules/**' --glob '!dist/**'`.
+6. Fix every unintended match. Do not leave starter/example names in app titles, package metadata, tests, scripts, fallback UI strings, Supabase config, or README files.
+7. Run `npm run lint`, `npm test`, and `npm run build`.
 
 The auth starter commits exact direct dependency versions and a lockfile. When refreshing the starter toolchain, update the direct dependency pins, lockfile, and Node engine floor in the same change, then validate a fresh scaffold under that Node version.
 
@@ -60,6 +61,16 @@ After copying the Team Tasks example:
 
 ## First Local Run
 
+Local Supabase needs Docker Engine with a running daemon on Linux or Docker Desktop on macOS. Playwright needs both its browser bundle and the platform runtime libraries. `npx playwright install chromium` installs only the browser; on Linux use `npx playwright install --with-deps chromium`, or follow it with `sudo npx playwright install-deps chromium` when privileged host provisioning is explicitly authorized.
+
+After `npm install`, run the read-only prerequisite check before committing to the full local sweep:
+
+```sh
+npm run preflight
+```
+
+If repository work is the only authorized scope, report failed host prerequisites rather than silently installing system packages or starting services.
+
 Use the workflow scripts instead of ad hoc command chains:
 
 ```sh
@@ -69,7 +80,7 @@ npm run get-going
 `get-going` should:
 
 - install dependencies when needed
-- open/wait for Docker Desktop on macOS
+- open/wait for Docker Desktop on macOS; require an already running Docker Engine or compatible daemon on Linux
 - start the local Supabase stack
 - disable Docker auto-restart for this project's Supabase containers
 - serve Edge Functions locally
@@ -120,6 +131,7 @@ Use these after meaningful changes:
 npm run lint
 npm test
 npm run build
+npm run preflight
 npm run test:visual
 npm run get-going
 npm run test:security
