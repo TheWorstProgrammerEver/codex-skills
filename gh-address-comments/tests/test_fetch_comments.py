@@ -42,7 +42,15 @@ if args[:2] != ["api", "graphql"]:
     raise SystemExit(2)
 
 query = sys.stdin.read()
-required = ["isResolved", "isOutdated", "path", "line", "author { login }", "url"]
+required = [
+    "isResolved",
+    "viewerCanResolve",
+    "isOutdated",
+    "path",
+    "line",
+    "author { login }",
+    "url",
+]
 if not all(field in query for field in required):
     raise SystemExit(3)
 
@@ -85,6 +93,7 @@ payload = {
                     "nodes": [{
                         "id": "thread-" + ("2" if threads_second_page else "1"),
                         "isResolved": threads_second_page,
+                        "viewerCanResolve": False,
                         "isOutdated": not threads_second_page,
                         "path": "src/example.py",
                         "line": 12,
@@ -166,11 +175,21 @@ class FetchCommentsIntegrationTest(unittest.TestCase):
         self.assertEqual(
             {
                 "isResolved": False,
+                "viewerCanResolve": False,
                 "isOutdated": True,
                 "path": "src/example.py",
                 "line": 12,
             },
-            {key: threads[0][key] for key in ("isResolved", "isOutdated", "path", "line")},
+            {
+                key: threads[0][key]
+                for key in (
+                    "isResolved",
+                    "viewerCanResolve",
+                    "isOutdated",
+                    "path",
+                    "line",
+                )
+            },
         )
         self.assertEqual("reviewer", threads[0]["comments"]["nodes"][0]["author"]["login"])
         self.assertIn("#discussion_r1", threads[0]["comments"]["nodes"][0]["url"])
