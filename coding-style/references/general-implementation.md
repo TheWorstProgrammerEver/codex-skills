@@ -236,6 +236,43 @@ and submit it.
 Follow the failure, retry, and mutation checks in
 [`automated-testing.md`](automated-testing.md#readiness-gated-secret-hydration-tests).
 
+## Secret-Bearing CLI Configuration Isolation
+
+Moving a credential out of argv is necessary but does not isolate the CLI that
+consumes it. Before hydrating or transporting secret bytes, disable every
+ambient or default configuration source that the supported CLI would otherwise
+load, or replace it with an explicitly owned and reviewed configuration. Keep
+the child environment to the documented minimum where applicable. A private
+stdin or descriptor can still be copied into a trace, debug log, output file,
+proxy command, or other behavior selected by ambient configuration.
+
+- Verify the exact production option order against the supported CLI version.
+  An option that disables startup configuration after the CLI has already read
+  it is not a boundary. For curl, `-q`/`--disable` must be the
+  **first command-line argument** to suppress the default `.curlrc`;
+  `--config -` selects stdin as an additional config source and does not
+  disable that default file. A secret-bearing adapter should therefore start
+  its curl arguments with
+  `--disable` before any other option and then supply only its controlled
+  options and input.
+- Inventory user, system, working-directory, environment-selected, and
+  tool-specific default configuration. If a source cannot be disabled, define
+  its exact custody and allowed directives, validate it before hydration, and
+  fail closed on an unexpected source or option. Changing `HOME` or clearing
+  one variable is not a substitute when the CLI has other search locations.
+- Construct a minimal explicit child environment from the CLI and platform
+  contract. Omit unrelated proxy, tracing, debugging, plugin, config-location,
+  and credential variables unless the reviewed adapter deliberately owns them.
+  Keep any required exception narrow and test it through the production
+  launcher.
+- Treat option ordering, config isolation, environment isolation, and secret
+  transport as separate review claims. Link the protected-descriptor and
+  cross-surface sentinel baseline from
+  [RYA-294](https://linear.app/ryan-hayward/issue/RYA-294/hive-mind-add-post-hygieia-security-and-systemd-publication-gates)
+  rather than duplicating it; apply the hostile-config negative control in
+  [`automated-testing.md`](automated-testing.md#secret-bearing-cli-and-temporary-namespace-tests)
+  for this additional boundary.
+
 ## Prompt-Driven External Effect Execution
 
 A retryable model or provider step may propose and render an external-effect
@@ -459,6 +496,46 @@ media-sanitization procedure separately when physical erasure is required.
 
 Use the interruption and swap scenarios in
 [`automated-testing.md`](automated-testing.md#transactional-sensitive-file-migration-tests).
+
+## Temporary Credential Namespace Custody
+
+A mode-`0600` temporary credential leaf protects the bytes only after the
+intended file has been opened. It does not prove stable custody of the name used
+to reach that file. Before creating, reopening, passing, or removing a
+temporary credential, validate the complete usable parent boundary from a
+trusted anchor to the leaf:
+
+- Reject a symlink at the direct parent or any ancestor. Require every
+  traversed component to be a real directory with the expected trusted owner
+  and a mode that excludes untrusted replacement of child entries. Reject a
+  non-sticky group- or world-writable parent when another local identity is in
+  the attacker model, even if the final directory and file are private.
+- Prefer an owner-only runtime directory and create an exclusive private child
+  directory and leaf beneath it. When the platform contract deliberately
+  permits a shared system temporary directory, narrow that exception to a
+  verified root-owned sticky directory with the expected mode, then create and
+  retain a private operation-owned child beneath it. The sticky bit limits
+  cross-identity entry removal in that immediate directory; it does not make
+  symlinked ancestry trustworthy or protect against the same identity,
+  privileged actors, a compromised parent owner, or every namespace race.
+- Bind validation and use with retained directory descriptors and no-follow,
+  descriptor-relative exclusive creation where available. Revalidate the
+  opened leaf's regular-file type, expected ownership and mode, and any
+  single-link requirement before use. A pathname `lstat` followed by a separate
+  pathname `open` can be raced after the check.
+- When the implementation language or platform cannot provide descriptor-
+  relative creation or an equivalent stable capability, state the narrower
+  attacker model and fail closed on every parent shape outside it. Do not claim
+  race safety from ancestor checks, `mktemp`, a restrictive `umask`, or leaf
+  permissions alone.
+
+Use the shell-specific review checklist in
+[`shell-safety.md`](shell-safety.md#temporary-credential-namespaces) and the
+production-entrypoint fixtures in
+[`automated-testing.md`](automated-testing.md#secret-bearing-cli-and-temporary-namespace-tests).
+These custody checks complement the broader
+[durable-state directory trust](#durable-state-directory-trust) rules; they do
+not replace crash-durability or transaction protocols.
 
 ## Safe Whole-Directory Replacement
 

@@ -1417,6 +1417,64 @@ Follow the implementation contract in
   each weakened boundary; otherwise the suite proves only the current happy
   path.
 
+### Secret-Bearing CLI And Temporary Namespace Tests
+
+Exercise the production launcher or public entrypoint, its real spawn adapter,
+and the supported target CLI together. Reuse the protected-descriptor and
+cross-surface sentinel baseline from
+[RYA-294](https://linear.app/ryan-hayward/issue/RYA-294/hive-mind-add-post-hygieia-security-and-systemd-publication-gates);
+add these distinct hostile-config and namespace controls rather than replacing
+or restating that matrix.
+
+For ambient configuration isolation:
+
+- Create an isolated home and plant a harmless default configuration whose
+  trace or log directive records requests to a test-owned path. Send a generated
+  bearer sentinel through the production stdin or protected-descriptor path to
+  a local fake endpoint. Assert that the default config is ignored, no trace
+  artifact containing the sentinel appears, and the child receives only the
+  reviewed minimal environment.
+- For curl, invoke the exact production argv and require `-q`/`--disable` to be
+  argument one. Run two mutations—omit it and place it after another option—
+  while keeping `.curlrc`, stdin config, endpoint, and sentinel unchanged. The
+  hostile trace must make the sentinel-exclusion assertion fail in both
+  mutations, proving that the suite detects omission and ordering regressions.
+- Include an allowed controlled-config case so the test distinguishes ignored
+  ambient input from a deliberately supplied minimal config. Keep endpoint,
+  files, and marker local and disposable; never use a real credential, proxy,
+  account, or external service.
+
+For temporary credential namespace custody, run the same production entrypoint
+against this fixture matrix before any secret-bearing child is launched:
+
+| Existing parent shape | Required evidence |
+| --- | --- |
+| Owner-only runtime directory and private child | Accept after validating every component; create the leaf exclusively with its private mode and verify the opened object. |
+| Direct parent symlink | Reject before leaf creation or cleanup; the test-owned outside target remains unchanged. |
+| Symlink at an earlier ancestor | Reject at that component before descending; no descendant appears in the outside target. |
+| Non-sticky attacker-writable parent | Reject even when a pre-existing leaf is mode `0600`; the launcher and secret-write spies remain untouched. |
+| Explicitly supported root-owned sticky system temporary directory | Accept only through the documented sticky fallback and a private operation-owned child; altered owner, missing sticky bit, or unexpected mode fails closed. |
+
+- Assert component-open, validation, descent, exclusive leaf creation, and
+  launcher events in order. Inspect the opened leaf rather than only a path or
+  mocked mode value. Make the unsafe-parent cases prove that leaf permissions
+  and namespace custody are independent predicates.
+- If the implementation claims concurrent-replacement resistance, add a real
+  descriptor-relative or equivalent race fixture that swaps a component after
+  validation and proves continued use of the pinned object or fail-closed
+  rejection. If those primitives are unavailable, assert the documented
+  narrower attacker model instead of weakening the expected result to a second
+  successful path check.
+- Allocate every home, trace, parent, outside target, fake endpoint, and marker
+  beneath test-owned temporary state. Register cleanup before launch, restore
+  process-wide environment in `finally`, and prove no test-prefixed artifact or
+  process remains.
+
+Follow the production boundaries in
+[`general-implementation.md`](general-implementation.md#secret-bearing-cli-configuration-isolation)
+and
+[`general-implementation.md`](general-implementation.md#temporary-credential-namespace-custody).
+
 ## Environment Cleanup
 
 - Tests that mutate `process.env`, current working directory, global console methods, timers, or other process-wide state must restore the original value in `finally`.
