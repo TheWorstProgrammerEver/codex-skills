@@ -12,6 +12,7 @@ checks that make the runtime usable by its target service.
 - [Verify Runtime Identity Without Execution](#verify-runtime-identity-without-execution)
 - [Enforce Entrypoint Semantics](#enforce-entrypoint-semantics)
 - [Build And Rescan The Placement Artifact](#build-and-rescan-the-placement-artifact)
+- [Package Global Node CLIs From Artifacts](#package-global-node-clis-from-artifacts)
 - [Verify Service Assets In An Isolated Root](#verify-service-assets-in-an-isolated-root)
 - [Exercise Hardened System Units At Runtime](#exercise-hardened-system-units-at-runtime)
 - [Test Every Boundary](#test-every-boundary)
@@ -135,6 +136,45 @@ protocol. An adapter consuming the artifact must rescan it again before
 placement rather than trusting a manifest that was valid only when the producer
 wrote it.
 
+## Package Global Node CLIs From Artifacts
+
+Treat a global Node CLI used by production, scheduled jobs, systemd units, or
+other unattended automation as an installed package artifact, not as a live
+checkout. A local-directory install such as `npm install -g .` commonly records
+the global package as a symlink back to the mutable source directory. That is a
+development convenience, not a release identity: later edits, branch switches,
+build outputs, dependency changes, or checkout cleanup can change the running
+service without an explicit deployment.
+
+For unattended deployment, build and test the reviewed source first, then create
+the package artifact with the project-owned packaging command, such as
+`npm pack`. Install that tarball or another immutable package artifact into the
+target global prefix. Record the artifact filename, package name and version,
+source commit or reviewed revision, byte length, and digest as deployment
+provenance. Do not claim deployment from a global package whose installed
+package root resolves into a mutable working tree.
+
+After installation, verify the installed shape independently:
+
+- resolve the package root reported by the package manager or discovered under
+  the global prefix, and require its real path to be outside the source
+  checkout and any other mutable development workspace;
+- resolve every public launcher with `readlink -f` or an equivalent no-surprise
+  real-path check, and confirm that it reaches the installed package artifact,
+  not a source-tree script;
+- run the final-path launcher smoke from an unrelated working directory with a
+  production-like minimal environment; and
+- for a scheduled or systemd-managed CLI, run the installed unit or an
+  equivalent disposable canary through the same manager namespace and service
+  account boundaries before enabling or re-arming unattended execution.
+
+Keep intentional symlinked development installs explicit and isolated. They may
+be acceptable for interactive local iteration when the command name, prefix,
+unit, environment, or documentation labels it as development-only and no
+unattended service, timer, cron job, or production wrapper can resolve to it. A
+development symlink must never share the production service namespace or be
+presented as a rollback-capable deployment.
+
 ## Verify Service Assets In An Isolated Root
 
 Parse each service definition and validate the policy-critical directives.
@@ -232,6 +272,7 @@ At minimum, prove this matrix:
 | Tampered extracted tree | Change one file after pinning; the extracted-tree gate fails even though the retained source-archive digest still matches its own artifact. |
 | Escaping symlink | Add a relative link whose lexical resolution leaves the runtime root; reject it before hashing, copying, or reading the outside target, and prove the outside fixture is unchanged. |
 | Invalid systemd unit | Route the generated unit to the isolated-root verifier or a deterministic failing fake; reject the bundle without installing, enabling, or starting anything. |
+| Global Node CLI service | Install a generated fixture once from a local directory and once from `npm pack` output into isolated global prefixes. Prove that the local-directory install leaves a package-root symlink into the checkout, while the artifact install resolves launcher and package-root paths inside the global prefix. Mutate the checkout and require the artifact-backed launcher and disposable service canary to keep reporting the reviewed package identity. |
 
 Also mutate every placement field independently: file bytes, mode, kind, path,
 extra or missing entry, and symlink target. Each complete-root rescan must fail.
