@@ -56,6 +56,7 @@ query(
         nodes {
           id
           isResolved
+          viewerCanResolve
           isOutdated
           path
           line

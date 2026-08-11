@@ -40,6 +40,7 @@ When `--repo` and `--pr` are omitted, the reader uses `gh pr view --json number,
 2. Inspect review context with thread-aware reads.
    - Use the GitHub app to fetch PR metadata and patch context when the repo and PR are known.
    - Use `scripts/fetch_comments.py` whenever the task depends on unresolved review threads, inline review locations, comment URLs, or resolution state.
+   - Use `isResolved` as the authoritative thread state. Treat `viewerCanResolve` as advisory for GitHub App flows because the field can be false even when the same dedicated App's `resolveReviewThread` mutation succeeds.
    - Use connector-only comment reads only for lightweight top-level PR comment summaries.
 3. Cluster actionable review threads.
    - Group comments by file or behavior area.
@@ -57,6 +58,10 @@ When `--repo` and `--pr` are omitted, the reader uses `gh pr view --json number,
 ## Write Safety
 
 - Do not reply on GitHub, resolve review threads, or submit a review unless the user explicitly asks for that write action.
+- Treat a PR review, a REST reply/comment write, and the GraphQL `resolveReviewThread` mutation as separate authorization boundaries. A successful review or reply does not prove resolution authority.
+- For GitHub App wrappers, treat the exact minted permission set plus repository selection as the boundary. Do not infer resolution authority from App identity, `pull_requests:write`, `issues:write`, or adjacent REST writes. If the same dedicated reviewer App already has repository-specific `contents:write` for an authorized merge flow, that may be the minimum scope that also permits thread resolution; otherwise do not broaden the token implicitly.
+- When resolving addressed threads is explicitly authorized, attempt only threads that are demonstrably addressed, route on the mutation result, and re-read each affected thread's `isResolved` value before reporting it resolved.
+- If `resolveReviewThread` returns an integration `FORBIDDEN` error such as `Resource not accessible by integration`, keep any posted reply or review as evidence, leave the thread unresolved, and hand off boundedly with the thread URLs, sanitized permission names that failed, and the two permitted next actions: an authorized collaborator resolves those specific threads manually, or the operator explicitly grants the repository-specific minimum scope to the same dedicated reviewer App and reruns verification. Do not switch to another GitHub identity or ask for broader credentials unless the operator explicitly authorizes that scope change.
 - If review comments conflict or would cause a behavioral regression, surface the tradeoff before making changes.
 - If a comment is ambiguous, ask for clarification or draft a proposed response instead of guessing.
 - Do not treat flat PR comments as a complete representation of review-thread state.
