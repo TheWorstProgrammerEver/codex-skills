@@ -86,6 +86,14 @@ Lead with findings ordered by severity. If there are no findings, say that direc
 - Separate facts, assumptions, inferences, and recommendations.
 - Check that uncertainty and tradeoffs are explicit and actionable.
 - Confirm the output answers the Linear issue and avoids over-broad unrelated research.
+- For a parent decomposed into delivery tasks, run a delivery-graph audit:
+  1. Map every parent outcome to the child that produces its executable artifact or completed external state. Classify code, documentation, operational implementation, production state, and final certification separately; a contract, runbook, or certification is not an operational owner for deployment, credential delivery, supervision, restart/resume, or cutover.
+  2. Find every human choice required before implementation and require a prerequisite decision gate or an already recorded decision.
+  3. Make the task that introduces a table or artifact its schema lifecycle owner for cascades, retention, cleanup, and focused validation; keep final end-to-end certification as a separate later concern.
+  4. Enumerate all potentially unbounded primary and secondary collections. Require explicit limits or cursors and validation for every collection.
+  5. Materialize producer-to-consumer edges and inspect cycles, roots, and leaves. Require each consumer to follow every producer it names, and require production cutover to precede post-deploy certification.
+  6. Report a missing semantic consumer/producer edge separately from a graph-theoretically redundant edge; simplification must not erase required ordering.
+- When the decomposition mixes code, schema phases, operators, deployment, and certification, read [the delivery-graph fixture](references/delivery-graph-fixture.md) and apply the same defective/corrected comparison.
 
 ### Ops/Local-Host
 
