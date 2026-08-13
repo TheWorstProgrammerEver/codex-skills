@@ -97,6 +97,12 @@ monotonic boundary through the active membership, advance the sender in the
 successful append transaction, and compose durable state with pagination
 cursors without allowing either boundary to regress.
 
+For private Broadcast channels or externally minted agent sessions, use the
+complete [private Realtime authorization pattern](supabase-private-realtime.md).
+Treat its private-channel settings, receive-only policies, signing-key custody,
+principal isolation, reconnect behavior, and live WebSocket matrix as one
+security boundary.
+
 ## RLS Helpers
 
 Prefer small SQL helper functions for repeated policy conditions:
