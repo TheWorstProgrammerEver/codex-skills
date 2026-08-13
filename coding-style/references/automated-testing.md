@@ -265,6 +265,57 @@ under [Immutable Artifact Acquisition](immutable-artifact-acquisition.md), but
 the validation record must state which pinned identity was reviewed and when
 the fixture must be refreshed.
 
+## Downloadable Skill Artifact Tests
+
+Treat a public downloadable Codex skill as three separately owned surfaces:
+
+| Surface | Required ownership and evidence |
+| --- | --- |
+| Authored skill content | Keep `SKILL.md`, authored references, and examples under normal source review. Validate the authored or assembled skill directory with the canonical skill validator. |
+| Generated contract references | Generate them only from the authoritative typed identifier, catalog, schema, and DTO sources. Commit generated output when the repository requires it, mark it generated, and provide a read-only check mode that rejects stale output without rewriting it. |
+| Served archive bytes | Build them from the reviewed authored content and freshly generated references through one deterministic packager. Make the handler serve those exact final bytes; do not rebuild from repository state or ambient configuration per request. |
+
+Define one explicit archive-entry allowlist with the complete normalized paths
+and expected order. Reject missing, extra, duplicate, absolute, traversal, or
+separator-ambiguous paths before publication. Normalize every byte-affecting
+archive field, including entry order, timestamps, file modes, creator/system
+attributes, extra fields, comments, and compression method and parameters.
+Prefer stored entries when compression is unnecessary; otherwise pin and test
+the compressor contract. Do not inherit source mtimes, owners, current working
+directory, locale, or other build-host state.
+
+Build the artifact twice in fresh processes or isolated temporary roots from
+the same reviewed inputs and compare the complete archives byte for byte. Parse
+one resulting archive independently and assert its exact entry set, order,
+metadata, and contents. A matching extracted tree is not enough because cache
+identity and clients observe the archive representation itself.
+
+Derive the download filename and any `Content-Version` value from the
+authoritative public contract's content-version scheme, with explicit bump
+rules; never use build time or a source-checkout label as the version. Derive a
+strong `ETag` from a collision-resistant digest of the final response bytes,
+after packaging. Assert that recomputing the digest over the exact `200` body
+reproduces the advertised ETag. A digest of the source tree, generated
+reference, or unarchived content is not the response identity.
+
+Exercise generation and serving with this matrix:
+
+| Scenario | Required evidence |
+| --- | --- |
+| Authoritative contract drift | Change one identifier, DTO field, or contract version in an isolated fixture while leaving committed generated output stale. Check mode must fail; regeneration must update the reference and archive through the normal path. |
+| Sensitive source content | Plant a fake credential-shaped marker and, separately, a fake private home or workspace path in an allowlisted source. Generation or validation must fail closed before publication. Keep a safe near-boundary control so the detector does not reject every placeholder. |
+| Hostile ambient input | Set unrelated credential, deployment, home, and network-shaped environment values, then build through the production entrypoint. None may affect or appear in the archive; scan both allowlisted sources and final extracted bytes with reviewed fail-closed patterns. |
+| Documentation examples | Parse every machine-readable request or command example and run it through the authoritative public schema, validator, or harmless dry-run path. Follow [Public Examples And Internal Fixtures](general-implementation.md#public-examples-and-internal-fixtures) for visitor-safe values, provenance boundaries, and its planted visitor-scan controls instead of duplicating them here. |
+| In-process handler | Require anonymous `200`, the exact prebuilt bytes and content-versioned filename, the byte-derived strong ETag, and a matching `If-None-Match` `304` with no body. Authentication-shaped headers must not vary a public artifact. |
+| Live public route | Start the real local or disposable public stack and repeat the anonymous `200`, exact-body, ETag-to-byte, and matching conditional `304` assertions through the routed URL. Also reject unowned suffixes, query variants, methods, or bodies without returning archive bytes. |
+
+Make the fake credential and private-path cases controlled violations of the
+same outer generation or validation command used in normal work. A unit test
+that calls only the scanner helper does not prove publication is gated. Keep
+all planted values synthetic, all route checks local or disposable, and all
+temporary sources, archives, servers, and environment changes under
+idempotent `finally` cleanup.
+
 ## Serialized Producer-Consumer Compatibility
 
 - Passing producer and consumer unit suites do not prove their composed
