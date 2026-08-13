@@ -392,6 +392,105 @@ attacker-controlled text. Use the fresh-runtime and structural-boundary matrix
 in
 [`automated-testing.md`](automated-testing.md#prompt-driven-external-effect-tests).
 
+## Persistent Host-Profile Inbox Bridges
+
+A transport inbox for an established Codex agent is a route into that agent's
+real host profile and durable conversation, not a reduced persona with the same
+display name. Run the host's supported Codex launcher with the selected agent's
+normal `HOME`, `CODEX_HOME`, instruction hierarchy, durable notes, skills,
+plugins, integrations, configured tools, model, and reasoning settings. Neither
+untrusted transport input nor the bridge should select model or reasoning
+overrides. If the product intentionally wants an isolated persona, name and
+document that separate product instead of presenting it as the host agent.
+
+Derive the conversation authority from authenticated transport records and bind
+each thread to a durable, broker-owned scope such as `(principal,
+conversation)`. Display names, prompt fields, and model output are not authority
+for that binding. Keep the mapping, cursor, lease, reply plan, workspace
+generation, and recovery state outside model-readable storage. Serialize
+mutations for one scope, and define these lifecycle transitions explicitly:
+
+- restart resumes the same thread only when the complete authority tuple,
+  workspace generation, and policy version remain valid;
+- a different principal or conversation cannot obtain another scope's thread,
+  workspace, state, plan, or transcript;
+- removal deletes the active binding, and re-addition creates a new thread and
+  workspace generation rather than reviving retired context; and
+- a migration that changes the writable root, permission boundary, or thread
+  trust contract invalidates old thread IDs while preserving only independently
+  validated cursors and already-published broker plans.
+
+For a new scope, the broker must send one source-controlled bootstrap before any
+untrusted conversation bytes reach the thread. The bootstrap may ask Codex to
+load its ordinary host identity and return a fixed readiness result, but prompt
+language such as "do not call tools" is defense in depth only. A host-profile
+Codex process may have network and tool authority before the runner can observe
+its first event. Apply the same durable effect boundary to bootstrap and normal
+turns:
+
+| Boundary | Recovery rule |
+| --- | --- |
+| Readiness or persistence fails before the effect-capable phase is durably reserved | No Codex process may have been spawned; the broker may retry after repeating preflight. |
+| Bootstrap or ordinary turn is durably reserved but spawn has not yet been observed | Treat interruption as indeterminate unless a trusted process/external-effect reconciler proves non-execution. The reservation deliberately closes the spawn/checkpoint ambiguity window. |
+| Any tool-capable Codex process may have started | Crash, cancellation, timeout, lost process, invalid output, or missing thread event is indeterminate. Do not clear the reservation, replay the prompt, or infer safety from the bootstrap wording. |
+| A closed, validated reply plan is durably published | Replay only that broker-owned plan with the same action identities and provider idempotency keys. Do not invoke or resume the model to regenerate it. |
+| Every planned transport action is authoritatively accepted | Acknowledge the inbound range and advance its cursor. Partial or ambiguous delivery remains unacknowledged and follows the plan's reconciliation contract. |
+
+Write the reservation durably in broker state before calling `spawn`, both for
+`codex exec` bootstrap and `codex exec resume`. Persist the returned thread ID
+only after validating exactly one thread-start event, then reserve the ordinary
+turn separately before resuming it. A `turn_indeterminate`-style terminal state
+should retain the unacknowledged inbound range and require an operator or
+authoritative reconciler to inspect possible host-tool effects. Automatic retry
+budgets apply only to failures proven to precede reservation.
+
+Loading the real host profile must not expose every host byte or make the host
+root writable. Give each authority scope a private writable workspace and keep
+the host profile readable only where normal context requires it. Structurally
+deny model tools from:
+
+- transport credentials, credential directories, broker capabilities, API
+  origins, and token-returning helpers;
+- broker state, leases, reply plans, handler outputs, and recovery metadata;
+- Codex authentication material, histories, session/thread stores, archived
+  sessions, shell snapshots, and writer locks;
+- every sibling principal, conversation, and retired workspace generation; and
+- creating, replacing, or mutating host instruction and configuration files,
+  including absent or nested `AGENTS.md`, `AGENTS.override.md`, and `.codex`
+  policy paths.
+
+Protect missing paths as well as existing files; existence-dependent deny rules
+let an untrusted turn create the next instruction source. Keep host instructions,
+Codex configuration, skills, plugins, and launchers under agent/operator
+ownership. A short-lived broker context capability, when needed, must be fixed
+to one authority scope and inbound range, expose typed read operations only,
+and close before a reply plan is published or dispatched.
+
+Construct the Codex child environment as an explicit policy boundary. Remove
+transport application keys, credential-directory variables, broker state and
+plan locators, context capabilities after their narrow use, and every
+transport-specific variable that is not part of the host-agent contract.
+Preserve only explicitly configured host integrations required for the real
+profile. A filesystem deny does not remove a secret inherited through the
+environment, and stripping the entire environment would silently turn the
+inbox back into a reduced persona.
+
+When using a named Codex permission profile, validate the installed Codex
+configuration before any reservation. Named `default_permissions` overlays do
+not compose safely with legacy `sandbox_mode` or
+`[sandbox_workspace_write]` configuration. Migrate the equivalent base policy
+through a format-aware, operator-controlled change and verify the effective
+profile; while any incompatible legacy setting remains, fail closed rather
+than starting Codex with a silently bypassed deny overlay.
+
+Keep transport delivery under the deterministic broker boundary from
+[Prompt-Driven External Effect Execution](#prompt-driven-external-effect-execution).
+Host tools may produce other external effects during bootstrap or an ordinary
+turn, so a transport send's idempotency does not make the model phase
+replayable. Apply the exact installed-launcher, service-namespace, recovery,
+and adversarial matrix in
+[`automated-testing.md`](automated-testing.md#persistent-host-profile-inbox-tests).
+
 ## Crash-Durable Atomic File Replacement
 
 On POSIX filesystems where the local adapter's rename semantics are established

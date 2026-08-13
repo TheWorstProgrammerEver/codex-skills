@@ -1086,6 +1086,110 @@ only generated non-secret identities and markers. Follow the production
 contract in
 [`general-implementation.md`](general-implementation.md#prompt-driven-external-effect-execution).
 
+### Persistent Host-Profile Inbox Tests
+
+Exercise the production broker, durable store, Codex launcher adapter, permission
+profile, and transport fake together. Keep one acceptance lane for the exact
+installed launcher and service; source-tree argument builders and model-free
+unit fakes remain necessary but are not final-path evidence.
+
+At minimum, cover this authority and lifecycle matrix:
+
+| Scenario | Required evidence |
+| --- | --- |
+| Initial delivery | A broker-authored bootstrap is the first and only content sent to the new thread. No untrusted message byte is present in its argv, stdin, environment, working directory, or readable broker state. The first conversation turn uses `resume` only after one validated thread ID is durably bound. |
+| Restart continuity | A fresh broker process with the same authenticated principal, conversation, workspace generation, and policy resumes the same thread and cursor. It does not bootstrap another thread. |
+| Cross-scope isolation | Distinct principals and conversations receive distinct threads and workspaces. Attempts to reuse another scope's thread ID, state, plan, transcript, or workspace fail before Codex spawn. |
+| Removal and re-addition | Removal retires the mapping. Re-adding the same transport identifier creates a new workspace generation and thread; neither retired writable context nor its thread is resumed. |
+| Trust-boundary migration | A fixture from the prior writable-root or permission contract drops its thread binding while independently valid cursors and published reply plans survive. A principal mismatch or malformed mapping fails closed rather than being repaired into another scope. |
+| Duplicate delivery | Repeated hints or inbound records coalesce around persisted transport sequence authority. One durable model plan and stable action identities produce no duplicate send, and acknowledgement occurs only after every planned action succeeds. |
+
+Prove reservation ordering with deterministic hooks around both bootstrap and
+ordinary turns:
+
+| Interruption | Expected recovery |
+| --- | --- |
+| Readiness failure before reservation | No spawn occurred. A later attempt may repeat preflight and reserve once. |
+| Immediately before durable reservation publication | No spawn occurred and no effect-capable phase is recorded. |
+| Immediately after reservation but before the spawn adapter reports a PID | A fresh broker records terminal indeterminate state and makes zero automatic Codex calls. |
+| After process start, before thread event, output validation, or plan publication | Cancellation, crash, timeout, invalid output, and lost-child variants all remain indeterminate, unacknowledged, and non-replayable across repeated restarts. |
+| After durable reply-plan publication | A fresh broker never calls Codex. It replays only the byte-identical plan with stable provider idempotency identities, reconciles ambiguous sends, and acknowledges only after complete authoritative success. |
+
+Temporarily move reservation after `spawn`, classify post-reservation failure as
+retryable, or trust the bootstrap's no-effect prompt. At least one
+accepted-effect or launch-counter fixture must then show the unsafe duplicate;
+the normal implementation must keep the counter unchanged across repeated
+restart attempts. Test bootstrap and ordinary turns independently because a
+bootstrap that appears to return only readiness may still have host tools.
+
+Run the exact generated Codex arguments and child environment through these
+identity checks:
+
+- the launcher uses the configured host `HOME`, `CODEX_HOME`, instruction
+  hierarchy, durable notes, skills, plugins, integrations, and tools;
+- bootstrap and resume omit ephemeral, ignore-user-config, ignore-rules,
+  model, and reasoning overrides; and
+- a read-only live acceptance turn discovers one operator-supplied host
+  instruction marker, one durable-context marker, and one authenticated
+  integration result without receiving the expected values in its prompt.
+
+Make the live acceptance inputs host-neutral and read-only. Supply expected
+markers through the test harness, not reusable source or fixtures, and return
+only bounded evidence. Do not copy a local username, home path, hostname,
+network address, issue title, transport credential, or integration response
+into shared test content.
+
+For the model-tool boundary, invoke the exact installed public Codex launcher
+through its sandbox command or another target-version permission probe. Use
+generated sentinel files and require this complete matrix:
+
+| Path or value | Expected access |
+| --- | --- |
+| Ordinary host instructions, durable context, skill/plugin metadata, and explicitly configured integration inputs | Readable as required by the host profile, but not writable when operator-owned. |
+| Current principal/conversation/workspace-generation ordinary output | Writable. |
+| Transport credential, credential directory, broker state/plan, handler output, Codex auth/history/session store, shell snapshot, and thread writer lock | Unreadable and unwritable. |
+| Sibling principal, conversation, or retired workspace | Unreadable and unwritable. |
+| Existing, absent, or nested host `AGENTS.md`, `AGENTS.override.md`, Codex configuration, rules, skill, or plugin path | Creation, replacement, and mutation denied. A planted attempt must fail while an ordinary current-workspace write succeeds. |
+
+Plant separate generated environment sentinels for allowed host integrations and
+denied transport, credential-directory, broker, and unrelated variables. Have
+the spawned fixture report its observed keys through a bounded channel. Assert
+exact preservation of the reviewed host set and structural absence of every
+denied key and value; inspecting only the parent environment object is not
+spawn evidence.
+
+Test named-permission compatibility against the installed Codex version. A
+clean `default_permissions` base plus the inbox deny overlay must pass. Active
+top-level `sandbox_mode`, `[sandbox_workspace_write]`, equivalent supported
+legacy spellings, an ambiguous or malformed config, and a migration whose
+effective result cannot be verified must all reject before reservation or
+spawn. Keep the operator migration path separate from the untrusted runner.
+
+Finally, validate the exact packaged service artifact in its target manager:
+
+1. Resolve the installed launcher, runtime, unit, account, home, working
+   directory, state directory, and permission profile from the deployed
+   artifact rather than a checkout.
+2. Statically verify the unit in an isolated root, then start an unchanged
+   candidate under the real or equivalent system-manager namespace.
+3. Prove the configured service identity and host profile, private current
+   workspace, denied credential/state/transcript paths, restart policy, and
+   bounded cancellation of the complete process group.
+4. Exercise clean start, explicit restart, crash restart, bootstrap
+   interruption, ordinary-turn interruption, state reuse, duplicate delivery,
+   injection, credential-exfiltration attempts, and success-gated
+   acknowledgement.
+5. Inspect bounded status and journal output for absence of prompts, transport
+   messages, credentials, capabilities, reply text, model output, native paths,
+   and raw exceptions.
+
+Use unique test-owned service and filesystem names, register cleanup before the
+first mutation, and remove the exact unit, drop-ins, processes, state, and
+fixtures in `finally`. A static unit check cannot replace the namespace start,
+and direct execution as the service user cannot replace the system-manager
+boundary. Follow the production contract in
+[`general-implementation.md`](general-implementation.md#persistent-host-profile-inbox-bridges).
+
 ### Persisted Clock-Stability Tests
 
 Test the
