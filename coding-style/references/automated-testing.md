@@ -1276,6 +1276,61 @@ At minimum, exercise this matrix:
 Follow the installer and schedule contract in
 [`systemd-timer-lifecycle.md`](systemd-timer-lifecycle.md).
 
+### Systemd Service Activation-Reconciliation Tests
+
+Drive the production activation entrypoint through an injected manager adapter
+that records custody construction, exact argument vectors, effective-binding
+reads, activation transitions, cleanup attempts, final-state reads, and the
+serialized report. Model manager state independently from command completion
+so a successful `stop` fake can still leave the unit active and expose a
+missing final-state check.
+
+Cover at least this matrix:
+
+| Scenario | Required evidence |
+| --- | --- |
+| Unrelated or shape-valid foreign unit | Reject before custody construction, recovery-command construction, binding lookup, or any manager mutation. No unrelated unit appears in an argument vector. |
+| Owned name with wrong loaded identity, fragment, drop-in, credential name, or credential source | Fail at `unit_binding`; enable, restart, stop, disable, reset, revocation, and credential mutation remain untouched. Repeat with binding drift immediately before a destructive path. |
+| Failure at each activation stage | Preserve the distinct binding, readiness, enablement, restart, or health stage/code and start reconciliation only when exact cleanup authority remains proven. |
+| Each cleanup command fails separately | Record its bounded reconciliation code, continue every later eligible cleanup command, perform the final state read, and retain the original activation stage/code separately. |
+| Cleanup commands return success but final state is active, restarting, failed, or has the wrong unit-file state | Report bounded reconciliation failure; never claim verified rollback. |
+| Stale owned start limit | Read the exact instance as failed, reset only that instance at the readiness boundary, restart, and prove fresh health. A non-failed state performs no reset. |
+| Native-output sentinels | Make every activation, cleanup, and final-read adapter emit distinct synthetic stdout, stderr, exception, journal, and credential markers. None may occur in either report, recovery command, or captured structured log. |
+
+Mutation-check the safety contract. Remove the exact-unit allowlist and require
+the unrelated-unit case to reach a forbidden adapter. Remove the authoritative
+post-cleanup read and require the false-success state case to fail. Remove
+original-cause retention and require every reconciliation-failure case to
+fail. Independently omit disable, stop, and scoped `reset-failed`; each
+mutation must fail its residual enabled, active/restarting, or stale-limit
+assertion. Also bypass the effective-binding recheck and require the binding-
+drift fixture to expose the attempted destructive command.
+
+Retain a target-compatible system-manager fixture because command-call mocks do
+not prove manager loading, merged drop-ins, credential properties, start-limit
+behavior, or post-cleanup state. Generate a unique instance under the owned
+template for every run and register cleanup before the first manager mutation.
+Through the production final path:
+
+1. load the unique unit and verify its effective credential name and source
+   through authoritative manager properties;
+2. force failed activation and prove the original bounded cause plus verified
+   inactive and expected enabled/disabled state after reconciliation;
+3. exhaust the fixture's start limit, rerun activation, and prove only the
+   exact instance is reset and becomes healthy; and
+4. in `finally`, stop, disable, reset, and remove only the unique unit and its
+   drop-ins and test credential artifacts, reload the manager, then prove no
+   unit, wants-link, process, credential file, or test-prefixed residue remains.
+
+Use a disposable manager or explicitly scoped integration host; never borrow a
+production or unrelated service as a negative target. Keep all credential
+bytes synthetic. Follow the implementation and projection contract in
+[`systemd-service-activation.md`](systemd-service-activation.md), the general
+test-owned service cleanup rules below, and the distinct credential-entry
+interruption matrix in
+[Reversible Credential-Rotation Tests](#reversible-credential-rotation-tests)
+instead of duplicating it here.
+
 ## Process And Service Cleanup
 
 - Tests that spawn processes must wait for exit, terminate explicitly, or use a controlled fake process object.
