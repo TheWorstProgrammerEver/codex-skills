@@ -26,7 +26,8 @@ Reference starters:
 8. For runtime config, Netlify builds, or local/LAN scripts, read `references/config-and-deploy.md`.
 9. Implement the usable app first, not a marketing page. Keep files small and concerns separated.
 10. On a fresh host, run the starter's read-only `npm run preflight` before promising local Supabase, security, or visual validation.
-11. Verify with the narrowest meaningful set: `npm run lint`, `npm test`, `npm run build`, Playwright for UI flows, and `npm run test:security` for RLS/function changes.
+11. Before schema or security integration tests, run the starter's local migration-alignment gate. A successful `supabase start` may restore persistent database state from another branch and is not proof that the live schema matches the checkout.
+12. Verify with the narrowest meaningful set: `npm run lint`, `npm test`, `npm run build`, Playwright for UI flows, and `npm run test:security` for RLS/function changes.
 
 ## Default Shape
 

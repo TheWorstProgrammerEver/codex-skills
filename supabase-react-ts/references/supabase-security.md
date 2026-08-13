@@ -278,6 +278,43 @@ health RPC directly.
 
 Keep tests under `tests/integration/security`. They should run only against local Supabase.
 
+### Branch-aware local migration gate
+
+Local Supabase database state persists independently of Git. `supabase start`
+can restore a healthy backup containing a migration from the previously checked
+out branch, so service readiness does not prove that database grants, policies,
+or objects conform to the current checkout. Before interpreting schema or
+security integration results, compare the live local migration history with
+the identifiers under `supabase/migrations`:
+
+```sh
+npm run supabase:check-migrations
+```
+
+The starter runs this read-only gate automatically before `npm run
+test:security`. Run it explicitly after switching branches or worktrees when
+either migration history differs or the prior database provenance is unknown.
+It fails on both database-only migrations and checkout migrations not yet
+applied. This identifier check catches branch-history drift; it does not prove
+that applied migration files were never edited or that no schema change was
+made outside migrations.
+
+Choose recovery based on data ownership:
+
+- For a disposable local test database, first confirm that no data must be
+  retained, then run the explicitly local `npm run supabase:reset`. Rerun the
+  alignment gate before the security suite. Reset is schema alignment, not an
+  ordinary startup step: it destroys local database contents and rebuilds from
+  the current checkout's migrations and seed.
+- If local data must be preserved, do not reset or repair migration history
+  automatically. Keep the read-only drift evidence, stop before tests, and ask
+  the operator to choose a backup/export and rebuild, reconciliation on the
+  branch that owns the migration, or an isolated local stack. Marking a history
+  row reverted does not remove the schema objects that migration created.
+- Give concurrent worktrees distinct Supabase `project_id` values so their
+  local Docker state is isolated. A second worktree that reuses the same
+  project state is not an independent validation environment.
+
 Cover at least:
 
 - Anonymous users cannot call business functions.

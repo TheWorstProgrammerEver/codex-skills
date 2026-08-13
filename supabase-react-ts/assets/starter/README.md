@@ -20,6 +20,21 @@ npm run preflight
 npm run get-going
 ```
 
+Before schema or security integration tests, confirm that the live local
+database migration history matches this checkout:
+
+```sh
+npm run supabase:check-migrations
+```
+
+`npm run test:security` runs this gate automatically. A successful local stack
+startup can restore persistent database state from another branch; it does not
+prove checkout alignment. After switching across migration-bearing branches,
+reset only when the local data is disposable: run `npm run supabase:reset`,
+rerun the gate, and then test. If the data must be preserved, do not reset;
+retain the drift report and choose a non-destructive reconciliation or an
+isolated stack.
+
 The read-only preflight checks Docker daemon access and launches headless Chromium once. Downloading Chromium with `npx playwright install chromium` does not install Linux shared-library dependencies. On a Linux development host, prepare both layers with `npx playwright install --with-deps chromium`, or install the browser and then run `sudo npx playwright install-deps chromium` as an explicitly authorized host-provisioning step.
 
 If this task is scoped to repository work, report a missing daemon or browser runtime as a host prerequisite. Do not silently install system packages, start services, or otherwise perform privileged host provisioning.

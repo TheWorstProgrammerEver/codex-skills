@@ -16,7 +16,16 @@ Inspect local URLs and keys:
 npm run supabase:status
 ```
 
-Reset the local database from migrations and seed:
+Check that the live local migration history matches this checkout:
+
+```sh
+npm run supabase:check-migrations
+```
+
+This read-only check is separate from service startup because persistent local
+database state can come from another branch.
+
+Reset a confirmed-disposable local database from migrations and seed:
 
 ```sh
 npm run supabase:reset
