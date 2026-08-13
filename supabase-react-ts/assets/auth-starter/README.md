@@ -48,11 +48,13 @@ Run `npm test` for the unit suite. Before Vitest starts, the command verifies th
 
 `public/config.json` is the committed deployment template and should be substituted by CI/CD. `npm run get-going` generates ignored `public/config.local.json` for the current machine/LAN. Visual tests keep their config under `tests/visual/config.test.json` and route it as `/config.local.json`.
 
+Authentication-method flags are frontend presentation capabilities. They do not authorize or deny account creation: callers can bypass the browser and invoke public Auth directly. Supabase Auth's project-wide and provider-specific signup settings are the authoritative enrolment controls.
+
 Deployment and hosted environment setup lives in `README.ENV.md`. Keep that file current whenever runtime config, Netlify settings, Supabase Auth providers, Edge Functions, migrations, or hosted dashboard settings change. It should contain placeholders only, never real secrets or machine-specific values.
 
 ## Security Integration Tests
 
-The security integration command is wired in but currently has no app-table tests because __APP_DISPLAY_NAME__ has no persisted product data yet:
+The ordinary security integration command proves the committed local backend permits a direct public signup, then removes its test user. It has no app-table tests yet because __APP_DISPLAY_NAME__ has no persisted product data:
 
 ```sh
 npm run get-going
@@ -61,3 +63,14 @@ npm run all-done
 ```
 
 Add RLS and direct publishable-key tests here when the first persisted __APP_DISPLAY_NAME__ feature lands.
+
+Backend-disabled signup validation is deliberately opt-in because it requires a differently configured Auth process. Use only a disposable local stack:
+
+1. Run `npm run all-done` so Auth is stopped before configuration changes.
+2. Set both `auth.enable_signup` and `auth.email.enable_signup` in `supabase/config.toml` to `false`.
+3. Run `npm run supabase:start` to restart Auth with the disabled configuration.
+4. Run `npm run test:security:signup-disabled`. The direct public request must return `signup_disabled` with neither a user nor a session.
+5. Run `npm run supabase:stop`, restore both committed values to `true`, and run `npm run supabase:start` again.
+6. Run `npm run test:security` to prove ordinary signup works after restoration, then `npm run all-done` when finished.
+
+Changing the TOML file without restarting Auth does not apply the setting. Hiding account creation in the UI or mocking `signup_disabled` proves presentation/error handling only, not backend enforcement.

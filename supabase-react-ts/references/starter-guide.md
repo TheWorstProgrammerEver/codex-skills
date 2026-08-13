@@ -34,6 +34,8 @@ After scaffolding:
 6. Fix every unintended match. Do not leave starter/example names in app titles, package metadata, tests, scripts, fallback UI strings, Supabase config, or README files.
 7. Run `npm run lint`, `npm test`, and `npm run build`.
 
+The auth starter's ordinary `npm run test:security` command makes one direct local public signup assertion and removes the created user. Its backend-disabled variant is intentionally opt-in because it requires restarting the local Auth service with both signup controls disabled. Follow the exact stop/change/restart/test/restore/restart sequence in the scaffolded `README.md`; never treat frontend visibility or a browser mock as proof of backend enforcement.
+
 The auth starter commits exact direct dependency versions and a lockfile. When refreshing the starter toolchain, update the direct dependency pins, lockfile, and Node engine floor in the same change, then validate a fresh scaffold under that Node version.
 
 The auth-only starter intentionally has no product tables, no app-data Edge Function, and no RLS policies yet. It uses Supabase Auth metadata for the displayed account rather than requiring a `profiles` table. Add migrations, RLS, and security tests with the first persisted product feature.
@@ -135,6 +137,7 @@ npm run preflight
 npm run test:visual
 npm run get-going
 npm run test:security
+npm run test:security:signup-disabled # only in the documented disabled-stack mode
 npm run all-done
 ```
 

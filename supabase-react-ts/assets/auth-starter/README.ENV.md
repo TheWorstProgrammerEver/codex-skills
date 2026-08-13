@@ -27,6 +27,8 @@ Set these Netlify environment variables for production:
 
 If a deploy uses a non-default config path, update the deploy-time `#{CONFIG_FILE}#` substitution in `public/config.js` and document the path here.
 
+The `AUTH_*_ENABLED` values control which methods the browser presents. They are non-authoritative and do not enable or disable backend signup.
+
 ## Netlify Site Settings
 
 - Build command: `npm run build:netlify`.
@@ -43,6 +45,7 @@ Configure these in the hosted Supabase dashboard for the production project. The
 
 - Site URL: `https://<production-domain>`.
 - Redirect URLs: include exact production callback and app URLs, for example `https://<production-domain>/**` only if wildcard redirects are intentionally accepted.
+- Public signup: set both the project-wide and email-provider signup settings to the intended backend value. Disable both to close public email enrolment. Keep frontend method/signup visibility aligned so the UI does not advertise a denied flow, but treat the backend settings as authoritative.
 - Email/password: match the product decision for confirmations, password requirements, signup availability, and SMTP sender settings.
 - OTP or magic link: enable only when the UI exposes it; configure email templates, sender identity, rate limits, and provider settings.
 - Passkeys/WebAuthn, when enabled:
@@ -79,6 +82,7 @@ Run these after every production deploy:
 - Open the production app and confirm the browser successfully loads `/config.js` and `/config.json`.
 - Confirm the browser config object contains the production `SUPABASE_URL`, expected auth flags, and no unresolved `#{...}#` tokens.
 - Sign in and sign out through the supported auth methods.
+- In a staging validation with both backend signup settings disabled and Auth restarted, confirm a direct public signup returns `signup_disabled` without a user or session. Restore the intended settings, restart Auth again, and prove ordinary signup afterward.
 - For auth callbacks, confirm the hosted app returns to the expected route without a redirect allow-list error.
 - Visit a deep SPA route directly and confirm Netlify serves `index.html` through `public/_redirects`.
 - Invoke `https://<project-ref>.supabase.co/functions/v1/app-health` and confirm it returns a JSON health response.

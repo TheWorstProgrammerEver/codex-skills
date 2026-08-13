@@ -236,6 +236,18 @@ has validated each enabled function route from `supabase/config.toml`. A passing
 health function alone can miss stale Edge Runtime state after adding a new
 function or importing new shared function code.
 
+### Backend-disabled public signup
+
+Frontend capability flags can hide account creation or authentication methods, but bundled browser config is caller-controlled and cannot enforce enrolment policy. Supabase Auth must reject public signup at the backend. For email signup, disable both `auth.enable_signup` and `auth.email.enable_signup`; treating only one setting as authoritative leaves the deployment contract ambiguous.
+
+Keep the backend-disabled check explicit and opt-in because it requires a different Auth process configuration from the ordinary signup-enabled suite. The test must call public Auth directly with the local publishable key and assert all three parts of the denial contract:
+
+- the error code is `signup_disabled`;
+- `data.user` is null;
+- `data.session` is null.
+
+Changing `supabase/config.toml` while Auth is running is not evidence that the new setting took effect. On a disposable local stack, stop the stack, change both settings to `false`, restart Auth through the local Supabase stack, and run only the opt-in denial test. Then stop the stack, restore both committed settings to `true`, restart, and rerun the ordinary signup-enabled security suite. Keep this workflow local-only and derive the public URL and key from local Supabase status rather than committing credentials.
+
 ## Local Only
 
 Security tests should require local endpoints and keys. Never point them at production or shared test environments unless the user explicitly designs that workflow.

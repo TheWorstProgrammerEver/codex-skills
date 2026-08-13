@@ -146,6 +146,12 @@ Set Auth redirect/site URLs in the Supabase dashboard for deployed domains. Proj
 
 For Edge Function CORS, prefer Supabase-supported wrappers/platform behavior when available. It is acceptable to serve permissive CORS for authenticated app functions if RLS and auth checks prevent useful abuse.
 
+### Public signup authority
+
+Frontend flags that show or hide account creation and individual authentication methods are non-authoritative presentation capabilities. A caller can bypass the browser and invoke public Auth directly. The deployment's authoritative email-enrolment controls are the project-wide `auth.enable_signup` and provider-specific `auth.email.enable_signup` settings; disable both when public email signup must be closed, and align frontend visibility so the UI does not advertise a denied flow.
+
+Validate backend-disabled signup only as an explicit local or staging operation because Auth must restart with the disabled configuration. For a disposable local stack: stop it, set both signup settings to `false`, restart, run a direct public Auth denial assertion, stop it again, restore both normal settings to `true`, restart, and rerun ordinary signup-enabled coverage. Do not leave the committed developer configuration disabled or infer backend enforcement from a hidden browser control or mocked response.
+
 For Edge Functions:
 
 - document every configured function name, entrypoint, and `verify_jwt` setting from `supabase/config.toml`
