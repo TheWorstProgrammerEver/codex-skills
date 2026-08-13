@@ -58,7 +58,10 @@ Common local endpoints:
 - Studio: `http://127.0.0.1:54323`
 - Mailpit: `http://127.0.0.1:54324`
 
-Local function health endpoints should be cheap and unauthenticated.
+Local function health endpoints should be cheap. A public health HTTP request
+may be unauthenticated, but its database capability must not become public:
+follow the [public health endpoint contract](public-health-endpoints.md) for a
+database-backed check.
 
 Treat `app-health` as a runtime smoke check, not proof that the current branch's
 business functions are mounted. A stale local Edge Runtime can keep serving an

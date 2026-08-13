@@ -20,10 +20,11 @@ Reference starters:
 4. For auth-only skeletons, run `scripts/scaffold.mjs` and skip app-data references until a persisted feature is requested.
 5. For data boundaries, Edge Functions, or request handling, read `references/architecture.md`.
 6. For schema, RLS, direct-table access, or security tests, read `references/supabase-security.md`.
-7. For runtime config, Netlify builds, or local/LAN scripts, read `references/config-and-deploy.md`.
-8. Implement the usable app first, not a marketing page. Keep files small and concerns separated.
-9. On a fresh host, run the starter's read-only `npm run preflight` before promising local Supabase, security, or visual validation.
-10. Verify with the narrowest meaningful set: `npm run lint`, `npm test`, `npm run build`, Playwright for UI flows, and `npm run test:security` for RLS/function changes.
+7. For a public database-backed health or readiness function, read `references/public-health-endpoints.md`.
+8. For runtime config, Netlify builds, or local/LAN scripts, read `references/config-and-deploy.md`.
+9. Implement the usable app first, not a marketing page. Keep files small and concerns separated.
+10. On a fresh host, run the starter's read-only `npm run preflight` before promising local Supabase, security, or visual validation.
+11. Verify with the narrowest meaningful set: `npm run lint`, `npm test`, `npm run build`, Playwright for UI flows, and `npm run test:security` for RLS/function changes.
 
 ## Default Shape
 
