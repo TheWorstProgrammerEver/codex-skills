@@ -1,6 +1,6 @@
 ---
 name: supabase-react-ts
-description: Build, scaffold, or refactor Supabase-backed React TypeScript apps in Ryan Hayward's MicroSaaS style. Use when Codex is asked to create a Vite React TSX app with Supabase Auth, Supabase Edge Functions, Row Level Security, local/LAN Supabase development, Netlify runtime config, command/query dispatch, semantic app UI, security integration tests, or to replace the older Day Painter React starter with a Supabase-backed starter.
+description: Build, scaffold, or refactor Supabase-backed React TypeScript apps in Ryan Hayward's MicroSaaS style. Use when Codex is asked to create a Vite React TSX app with Supabase Auth, Supabase Edge Functions, Row Level Security, private Realtime Broadcast authorization or externally minted short-lived sessions, local/LAN Supabase development, Netlify runtime config, command/query dispatch, semantic app UI, security integration tests, or to replace the older Day Painter React starter with a Supabase-backed starter.
 ---
 
 # Supabase React TS
@@ -24,12 +24,13 @@ Reference starters:
    replay-safe retries, also read `references/supabase-serialized-writes.md`.
    For exact unread or acknowledgement state over that ordered stream, also
    read `references/supabase-membership-watermarks.md`.
-7. For a public database-backed health or readiness function, read `references/public-health-endpoints.md`.
-8. For runtime config, Netlify builds, or local/LAN scripts, read `references/config-and-deploy.md`.
-9. Implement the usable app first, not a marketing page. Keep files small and concerns separated.
-10. On a fresh host, run the starter's read-only `npm run preflight` before promising local Supabase, security, or visual validation.
-11. Before schema or security integration tests, run the starter's local migration-alignment gate. A successful `supabase start` may restore persistent database state from another branch and is not proof that the live schema matches the checkout.
-12. Verify with the narrowest meaningful set: `npm run lint`, `npm test`, `npm run build`, Playwright for UI flows, and `npm run test:security` for RLS/function changes.
+7. For private Broadcast channels, receive-only Realtime RLS, or externally minted Realtime sessions, read `references/supabase-private-realtime.md`.
+8. For a public database-backed health or readiness function, read `references/public-health-endpoints.md`.
+9. For runtime config, Netlify builds, or local/LAN scripts, read `references/config-and-deploy.md`.
+10. Implement the usable app first, not a marketing page. Keep files small and concerns separated.
+11. On a fresh host, run the starter's read-only `npm run preflight` before promising local Supabase, security, or visual validation.
+12. Before schema or security integration tests, run the starter's local migration-alignment gate. A successful `supabase start` may restore persistent database state from another branch and is not proof that the live schema matches the checkout.
+13. Verify with the narrowest meaningful set: `npm run lint`, `npm test`, `npm run build`, Playwright for UI flows, and `npm run test:security` for RLS/function changes.
 
 ## Default Shape
 
