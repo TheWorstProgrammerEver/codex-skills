@@ -120,6 +120,44 @@ in the first or current page is not evidence that no matching item exists.
 Use the production adapter and effect-spy matrix in
 [`automated-testing.md`](automated-testing.md#paginated-authorization-evidence-tests).
 
+### Preserve Exact Keyset Cursor Tuples
+
+Keyset pagination is stable only when the cursor preserves the database's
+complete ordering tuple exactly. Define one deterministic total order with a
+unique final tie-breaker, such as `(created_at, id)`, and make the continuation
+predicate use the same component order, directions, null policy, and collation.
+Build the cursor from the actual last returned row rather than a display model
+or separately reconstructed value.
+
+- Serialize every tuple component without losing comparison information. Keep
+  a higher-precision database timestamp in its exact database representation
+  or another lossless canonical form. Do not parse a PostgreSQL `timestamptz`
+  through JavaScript `Date` and call `toISOString()` before cursor encoding:
+  `Date` retains milliseconds, so database microseconds can be truncated and a
+  continuation can skip rows between the original and rounded values. Apply
+  the same rule to decimals, large integers, collated text, and other sort keys
+  whose database domain is wider than the runtime representation.
+- Decode into a closed schema and validate every component's type, syntax,
+  range, and supported version before constructing or executing a query.
+  Reject missing, extra, malformed, non-canonical, or precision-losing values;
+  never pass partially decoded cursor data to the database.
+- Make the final ordering component unique and immutable for the list's
+  lifetime. Non-unique primary values require the tie-breaker in both the
+  `ORDER BY` and exclusive continuation predicate; otherwise equal values can
+  be skipped or duplicated across page boundaries.
+- Enforce a positive server-side page-size maximum before query execution.
+  Treat an omitted client limit according to an explicit bounded default and
+  reject booleans, fractions, non-numbers, zero, negatives, and over-limit
+  values rather than allowing an unbounded query.
+- An exclusive keyset continuation remains stable when a new row sorts ahead
+  of the cursor: the new leading row is left for a fresh traversal while the
+  continuation neither repeats earlier rows nor skips later original rows.
+  Use snapshot semantics when the product instead requires a traversal to
+  represent one immutable database view.
+
+Use the serializer, query, concurrency, and mutation matrix in
+[`automated-testing.md`](automated-testing.md#exact-keyset-pagination-cursor-tests).
+
 ## Structured-Configuration Mutation
 
 Treat TOML, INI, YAML, service files, and similar configuration as structured
