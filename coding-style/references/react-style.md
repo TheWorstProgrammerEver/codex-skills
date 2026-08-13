@@ -14,6 +14,14 @@
 - Make side effects explicit in hooks and ensure cleanup paths are present for subscriptions, timers, observers, and async work.
 - Keep derived data as pure calculations where practical instead of duplicating it in mutable state.
 
+### Route-Scoped Async State
+
+- Assume a route-parameter change can reuse the same component and hook instances. Clearing state in an effect does not stop work issued for the previous tenant, account, project, conversation, or other scope from settling into the new route.
+- Give each route scope a generation or equivalent operation identity. Capture both the scope key and generation before every request, command, or subscription reconciliation, then require both to remain current after every `await` and immediately before every route-scoped state mutation.
+- Apply the guard to success, error, and completion paths. This includes content and cursor merges, busy flags, errors, access-denied state, drafts, read markers or watermarks, and any other state whose meaning depends on the route. A guarded success path with an unguarded `catch` or `finally` still permits stale state to cross scopes.
+- Invalidate the generation synchronously when the route scope changes and when the owner unmounts. Cancel requests and unsubscribe transports where practical to avoid wasted work, but keep the identity check as the correctness gate because cancellation can race with settlement or be unsupported.
+- Validate that every incoming DTO belongs to the captured scope before merging it. Key sequence tracking, deduplication, cursors, and reconciliation state by tenant or route scope so an identifier or watermark from one scope cannot suppress or advance another.
+
 ## UI Implementation
 
 - Prefer semantic HTML, native controls, and accessible interaction patterns.

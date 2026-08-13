@@ -11,6 +11,33 @@ Tests must clean up after themselves. A successful or failed test run should not
 - Apply Inversion of Control, Dependency Inversion, and Liskov Substitution principles to make tests meaningful without over-coupling them to implementation details.
 - Keep unit tests focused on domain behavior, parsing, state transitions, and adapter boundaries rather than incidental framework mechanics.
 
+### Route-Scoped Async State Tests
+
+Use controlled deferred requests to prove that a route-parameter change on the
+same route definition isolates the new scope even when React reuses the same
+component and hook instances. Do not remount with a different route definition
+or rely on transport cancellation as the test oracle; either shortcut can hide
+a missing post-`await` generation check.
+
+Start route A and hold its request or subscription reconciliation pending.
+Navigate to route B through the production router, wait until B has initialized
+its content and scope-dependent state, then settle A. Cover these stale A
+outcomes while asserting the complete B state after each settlement:
+
+| Stale A settlement | Required B evidence |
+| --- | --- |
+| Success with valid A-scoped DTOs, content, cursor, sequence, and read watermark | No A content merges; B's content, cursor, tenant-scoped deduplication or sequence state, and read watermark remain exact. |
+| Access denial | B does not become denied, lose content, reset its draft, or inherit any A-specific empty state. |
+| Transport or application error | B's error and busy state remain unchanged, and its initialized content and scope metadata remain intact. |
+
+- Drive both the success merge and the denial/error mutations through the same production hook boundary and route-change fixture. Separate happy-path-only tests can pass when content has a generation guard but `catch` or `finally` still applies stale denial, error, or busy state.
+- Give the deferred fixture an independent watchdog and release every pending request, listener, and router resource in `finally`. Assert no post-settlement update or unhandled rejection remains after the stale operation settles.
+- Mutation-check the boundary by removing one post-`await` scope-and-generation guard at a time from the success, denial/error, and completion paths. The focused fixture must fail for the corresponding A-to-B state leak; a test that still passes under any partial guard does not prove route isolation.
+- Include a wrong-scope DTO and colliding identifiers or sequence values across A and B. The production merge must reject the DTO scope mismatch, and tenant-scoped deduplication must allow B's legitimate item or watermark even when A used the same key.
+
+Follow the implementation guidance in
+[`react-style.md`](react-style.md#route-scoped-async-state).
+
 ## Host-Diagnostic Evidence Tests
 
 Exercise the production collector, topology resolver, normalizer, and reporting
