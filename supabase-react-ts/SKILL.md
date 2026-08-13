@@ -40,6 +40,7 @@ Reference starters:
 
 - Treat dependencies with skepticism. Prefer official/high-reputation packages already implied by the stack.
 - Keep Supabase as an implementation detail behind data/dispatch boundaries in the client.
+- Treat an Edge Function name as a URL routing prefix, not exact-path enforcement. Declare the runtime-visible pathname or path set that each function owns before privileged work.
 - Do not rely on Edge Functions alone for security. Malicious users can call tables directly with the publishable key; RLS must be correct.
 - Prefer semantic HTML, native controls, and reusable layout primitives from `lib/ui`.
 - Use the starter action hierarchy: one clear primary action, quiet supporting actions, destructive intent styling, Lucide icons, and responsive icon/text content.

@@ -23,6 +23,10 @@ const parseAppRequest = async (request: Request): Promise<IRequest<unknown, unkn
 
 export default {
   fetch: withSupabase({ auth: 'user' }, async (request, context) => {
+    if (new URL(request.url).pathname !== '/app') {
+      return Response.json({ error: 'Not found' }, { status: 404 })
+    }
+
     if (request.method !== 'POST') {
       return Response.json({ error: 'Method not allowed' }, { status: 405 })
     }
