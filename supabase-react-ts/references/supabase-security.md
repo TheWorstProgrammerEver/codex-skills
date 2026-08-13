@@ -13,7 +13,8 @@ Assume malicious users can:
 
 Therefore:
 
-- Edge Functions must require authenticated users.
+- Business Edge Functions must require authenticated users. Keep deliberately
+  public functions narrow and follow their explicit public-endpoint contract.
 - Database tables must have Row Level Security enabled.
 - RLS must protect direct table access independently of function code.
 - Security tests must exercise both functions and direct table access.
@@ -197,6 +198,11 @@ export default {
 
 Function handlers should still validate target workspace/tenant membership before writes that are domain-sensitive. Treat this as clearer error handling and defense in depth, not as the only security layer.
 
+For a public database-backed health or readiness function, use the narrower
+[public health endpoint contract](public-health-endpoints.md). Anonymous HTTP
+access does not imply that `anon` or `authenticated` may execute the underlying
+health RPC directly.
+
 ## Security Integration Tests
 
 Keep tests under `tests/integration/security`. They should run only against local Supabase.
@@ -204,6 +210,9 @@ Keep tests under `tests/integration/security`. They should run only against loca
 Cover at least:
 
 - Anonymous users cannot call business functions.
+- Public database-backed health endpoints remain callable without a user
+  session, while direct `anon` and `authenticated` RPC calls are denied; use
+  the [health endpoint test matrix](public-health-endpoints.md#validation-matrix).
 - Anonymous users cannot read app tables directly.
 - A browser publishable key plus a valid human JWT enters the human's
   RLS-scoped context, while the publishable key alone grants no user identity.

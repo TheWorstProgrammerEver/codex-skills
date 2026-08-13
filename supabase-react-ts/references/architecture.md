@@ -78,6 +78,12 @@ export const createThingHandler = createAppRequestHandlerFactory(
 
 Split handler files by domain capability as they grow. Keep shared helpers in function-local helpers, mappers, or profile modules.
 
+A public database-backed health or readiness function is a deliberate exception
+to the normal authenticated business-function shape. Keep only its HTTP request
+anonymous; keep its fixed database operation server-only and follow the
+[public health endpoint contract](public-health-endpoints.md), including exact
+function-relative routing and a request budget before database access.
+
 ## Public URL Generation
 
 When an Edge Function emits absolute public URLs, such as QR code source links, signed callbacks, metadata URLs, or links that will be opened outside the current browser session, treat the product's public app host as explicit runtime configuration. Do not infer the canonical host from `Request.url`, `Host`, `X-Forwarded-*`, or other request-derived headers. Local Supabase/Kong and proxied hosted paths can reflect the function gateway, omit the original app port, or otherwise differ from the public product host.
