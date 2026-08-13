@@ -285,15 +285,28 @@ observe the actual status:
 
 ```ts
 const channel = client
-  .channel(topic, { config: { private: true } })
+  .channel(topic, {
+    config: { private: true, broadcast: { ack: true } }
+  })
   .on('broadcast', { event: availabilityEvent }, observe)
 
-channel.subscribe((status) => settle(status))
+channel.subscribe((status, error) => settle({ status, error }))
 ```
 
-Bound subscriptions and event waits with timeouts, fail if a positive path does
-not reach `SUBSCRIBED`, require every denial not to reach `SUBSCRIBED`, and
-remove channels plus disconnect clients in `finally` cleanup.
+Enable Broadcast acknowledgements on every channel used to test receive-only
+client-send denial. With acknowledgements disabled, the pinned JavaScript
+client can resolve a send before the server has reported a push failure. Assert
+that `await channel.send(...)` returns the pinned client's generic `'error'`
+result and that no observer receives the sentinel event.
+
+Bound subscriptions and event waits with timeouts. Require a positive path to
+reach `SUBSCRIBED`. A denied join must produce `CHANNEL_ERROR`, and the full
+error or its cause must contain the authorization or permission rejection
+expected from the pinned local Realtime/client versions. Treat `TIMED_OUT`, the
+test helper's watchdog expiry, `SUBSCRIBED`, or a close without the preceding
+expected `CHANNEL_ERROR` as test failures. Prove a positive join through the
+same principal policy path immediately before its negative cases, then remove
+channels and disconnect clients in `finally` cleanup.
 
 When humans and agents use separate helpers or policies, cross both paths. An
 agent denial is not evidence that the human policy denies the same case.
@@ -303,12 +316,12 @@ agent denial is not evidence that the human policy denies the same case.
 | Human | Active member | Private join reaches `SUBSCRIBED` and receives one database-sent availability event. |
 | Human | Outsider and pending invitee | Each fresh private join is denied. |
 | Human | Cross-topic and post-removal fresh client | First prove an allowed join; then prove each unauthorized fresh join/reconnect is denied. |
-| Human | Client send | Broadcast send fails because no client `INSERT` policy exists. |
+| Human | Client send | On an `ack: true` channel, `send()` returns the pinned client's explicit `'error'` result because no client `INSERT` policy exists, and no observer receives the sentinel event. |
 | Agent | Active member with bounded topic claim | Private join reaches `SUBSCRIBED` and receives the same metadata-only event. |
 | Agent | Missing claim, cross-topic, inactive agent, and removed membership | Each fresh private join is denied even if another topic was allowed. |
 | Agent | Human-subject confusion | A dedicated-role/token-kind JWT whose `sub` is a human member's Auth user ID is denied by the human helper and live join. |
 | Agent | Refresh and reconnect | A new authorized token works through the configured refresh mode; refresh/session issuance and a fresh reconnect fail immediately after removal. |
-| Agent | Client send | Broadcast send fails because no client `INSERT` policy exists. |
+| Agent | Client send | On an `ack: true` channel, `send()` returns the same explicit `'error'` result because no client `INSERT` policy exists, and no observer receives the sentinel event. |
 | Agent | Data API and chat isolation | Table reads expose no rows; writes, application RPCs, principal resolution, and the canonical business endpoint are denied. |
 | Agent | Expiry | A connection that never receives a replacement JWT disconnects after the short token expiry. |
 | Both | Exact wire shape | Application fields equal the reviewed metadata-only contract; only the pinned transport's documented opaque metadata is additional. No content or credential sentinel appears. |

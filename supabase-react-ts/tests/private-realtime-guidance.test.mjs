@@ -79,8 +79,14 @@ test('validation matrix crosses human and agent policy paths with live joins', a
   ]
 
   assert.match(realtime, /real private Realtime WebSocket\s+joins/)
-  assert.match(realtime, /\.channel\(topic, \{ config: \{ private: true \} \}\)/)
-  assert.match(realtime, /not to reach `SUBSCRIBED`/)
+  assert.match(realtime, /config: \{ private: true, broadcast: \{ ack: true \} \}/)
+  assert.match(realtime, /`await channel\.send\(\.\.\.\)` returns the pinned client's generic `'error'`/)
+  assert.match(realtime, /no observer receives the sentinel event/)
+  assert.match(realtime, /denied join must produce `CHANNEL_ERROR`/)
+  assert.match(realtime, /full\s+error or its cause must contain the authorization or permission rejection/)
+  assert.match(realtime, /Treat `TIMED_OUT`, the\s+test helper's watchdog expiry, `SUBSCRIBED`/)
+  assert.doesNotMatch(realtime, /require every denial not to reach `SUBSCRIBED`/)
+  assert.match(realtime, /positive join through the\s+same principal policy path immediately before its negative cases/)
   assert.match(realtime, /An\s+agent denial is not evidence that the human policy denies the same case/)
 
   for (const scenario of requiredScenarios) {
