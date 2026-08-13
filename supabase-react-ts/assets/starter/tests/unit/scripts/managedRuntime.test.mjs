@@ -160,4 +160,60 @@ describe('managed runtime shutdown', () => {
     expect(sendSignal).toHaveBeenCalledWith(identity.pid, 'SIGTERM')
     expect(state).toBeUndefined()
   })
+
+  it('accepts normal owner self-release after successful termination', async () => {
+    let state = identity
+    const inspectProcess = vi.fn()
+      .mockResolvedValueOnce('owned')
+      .mockResolvedValueOnce('owned')
+      .mockResolvedValueOnce('stopped')
+    const sendSignal = vi.fn()
+
+    await expect(stopManagedRuntime({
+      coordinate,
+      inspectProcess,
+      readIdentity: () => state,
+      removeIdentity: () => {
+        state = undefined
+      },
+      sendSignal,
+      sleep: async () => {
+        state = undefined
+      }
+    })).resolves.toBe('stopped')
+
+    expect(sendSignal).toHaveBeenCalledWith(identity.pid, 'SIGTERM')
+    expect(state).toBeUndefined()
+  })
+
+  it('preserves a replacement generation after the old owner terminates', async () => {
+    const replacement = {
+      ...identity,
+      marker: 'supabase-starter:fedcba9876543210',
+      pid: 4343,
+      startTimeTicks: '654321'
+    }
+    let state = identity
+    const inspectProcess = vi.fn()
+      .mockResolvedValueOnce('owned')
+      .mockResolvedValueOnce('owned')
+      .mockResolvedValueOnce('stopped')
+    const removeIdentity = vi.fn(() => {
+      state = undefined
+    })
+
+    await expect(stopManagedRuntime({
+      coordinate,
+      inspectProcess,
+      readIdentity: () => state,
+      removeIdentity,
+      sendSignal: vi.fn(),
+      sleep: async () => {
+        state = replacement
+      }
+    })).resolves.toBe('state-changed')
+
+    expect(removeIdentity).not.toHaveBeenCalled()
+    expect(state).toEqual(replacement)
+  })
 })

@@ -96,8 +96,7 @@ describe('managed process groups', () => {
         ].join(';')
         const launcher = [
           "const { spawn } = require('node:child_process')",
-          `spawn(process.execPath, ['-e', ${JSON.stringify(resistantDescendant)}, process.argv[1]], { stdio: 'ignore' })`,
-          'setInterval(() => {}, 1000)'
+          `spawn(process.execPath, ['-e', ${JSON.stringify(resistantDescendant)}, process.argv[1]], { stdio: 'ignore' }).unref()`
         ].join(';')
 
         startManagedProcess(
@@ -117,6 +116,12 @@ describe('managed process groups', () => {
           const current = readProcessIdentity(descendantPid)
           return isProcessExecuting(current) ? current : undefined
         })
+
+        await waitFor(() => (
+          managedProcesses[0].child.exitCode !== null
+          || managedProcesses[0].child.signalCode !== null
+        ))
+        expect(isProcessExecuting(readProcessIdentity(launcherIdentity.pid))).toBe(false)
 
         await stopManagedProcesses(managedProcesses, {
           graceMs: 100,

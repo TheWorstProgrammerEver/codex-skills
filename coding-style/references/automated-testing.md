@@ -1190,7 +1190,15 @@ so every ownership decision and denied signal is observable.
   every operating-system family advertised by the lifecycle scripts. Parser
   tests for another platform do not replace its real observation, graceful
   shutdown, bounded escalation, and terminal-state evidence; keep the CI
-  matrix explicit so one platform cannot silently skip the fixture.
+  matrix explicit so one platform cannot silently skip the fixture. In the
+  resistant case, make the group leader actually exit and assert that terminal
+  state before cleanup begins; a launcher kept alive by a timer does not cover
+  descendant-only ownership recovery. Separately cover owner conditional
+  self-release after signaling and prove that absence succeeds while a
+  replacement generation remains preserved and reported as changed state. Add
+  a replacement-publication barrier between manager reconciliation and each
+  later dependency-stop effect; the replacement must either remain excluded or
+  make the shutdown fail before the first such effect.
 
 #### Cancellation Settlement Race Fixtures
 

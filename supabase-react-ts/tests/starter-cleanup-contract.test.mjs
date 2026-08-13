@@ -14,15 +14,36 @@ const starterRoots = [
 const requiredSources = {
   'scripts/all-done.mjs': [
     /stopManagedRuntime\(\)/,
+    /await runWithRuntimeState\(async \(\) =>/,
+    /if \(readCurrentRuntime\(\)\)/,
     /if \(runtimeIdentity\)/,
     /if \(running\.length > 0\)/,
-    /No unowned listener was signaled/
+    /No unowned listener was signaled/,
+    /no replacement generation was disrupted/
   ],
   'scripts/managed-runtime.mjs': [
     /projectRoot/,
     /withRuntimeStateCoordinator/,
     /const immediateStatus = await inspectProcess\(identity\)/,
+    /if \(!current\) \{\s+return 'stopped'/,
     /did not terminate within the shutdown deadline/
+  ],
+  'scripts/managed-processes.mjs': [
+    /membersAfterLeaderExit/,
+    /processGroupMembersMatch\(membersAfterLeaderExit, currentMembers\)/,
+    /signalManagedProcessGroup\(processGroupId, 'SIGTERM', ownedMembers\)/
+  ],
+  'tests/unit/scripts/managedProcesses.test.mjs': [
+    /\.unref\(\)/,
+    /expect\(isProcessExecuting\(readProcessIdentity\(launcherIdentity\.pid\)\)\)\.toBe\(false\)/
+  ],
+  'tests/unit/scripts/managedRuntime.test.mjs': [
+    /accepts normal owner self-release after successful termination/,
+    /preserves a replacement generation after the old owner terminates/
+  ],
+  'tests/unit/scripts/allDone.test.mjs': [
+    /does not stop Supabase after a replacement runtime claims ownership/,
+    /holds generation exclusion across every Supabase stop effect/
   ],
   'tests/visual/supabaseTestAuth.ts': [
     /url\.protocol !== 'http:' \|\| !loopbackHosts\.has\(url\.hostname\)/,
@@ -79,10 +100,26 @@ test('unsafe cleanup mutations fail the outer contract', async () => {
     await cp(starterRoots[0], temporaryRoot, { recursive: true })
     const mutations = [
       ['scripts/all-done.mjs', 'if (runtimeIdentity) {', 'if (false) {'],
+      ['scripts/all-done.mjs', 'if (readCurrentRuntime()) {', 'if (false) {'],
       [
         'scripts/managed-runtime.mjs',
         'const immediateStatus = await inspectProcess(identity)',
         "const immediateStatus = 'owned'"
+      ],
+      [
+        'scripts/managed-runtime.mjs',
+        'if (!current) {',
+        'if (false) {'
+      ],
+      [
+        'scripts/managed-processes.mjs',
+        'processGroupMembersMatch(membersAfterLeaderExit, currentMembers)',
+        'false'
+      ],
+      [
+        'tests/unit/scripts/managedProcesses.test.mjs',
+        '.unref()',
+        ''
       ],
       [
         'tests/visual/supabaseTestAuth.ts',

@@ -108,13 +108,18 @@ npm run all-done
 
 `get-going` owns a project-local runtime generation and keeps its launched Vite
 and Edge Function process groups attached to that owner. `all-done` signals only
-that freshly revalidated owner, awaits its bounded group cleanup, stops the
-project-labelled Supabase stack, and reports success only after runtime state
-and advertised endpoints are terminal. It never treats a listener on the
+that freshly revalidated owner, awaits its bounded group cleanup, and retains a
+stable member snapshot when a launched group leader exits before its remaining
+descendants. Normal owner self-release after signaling is reconciled separately
+from a replacement generation, which remains untouched. Generation exclusion
+stays held while the workflow stops the project-labelled Supabase stack, so a
+replacement cannot claim between owner reconciliation and those stop effects.
+It reports success only after runtime state and advertised endpoints are
+terminal. It never treats a listener on the
 shared Vite port or a host-wide command match as permission to signal. If the
-runtime record is missing, malformed, stale, cross-project, or changes during
-shutdown, follow the bounded diagnostic and stop the identified process
-explicitly before retrying.
+runtime record is malformed, stale, cross-project, or replaced during shutdown,
+follow the bounded diagnostic and stop the identified process explicitly before
+retrying.
 
 The workflow scripts should derive the Supabase project id from `supabase/config.toml` and set matching containers to Docker `--restart=no`, so one starter cannot quietly relaunch itself every time Docker Desktop opens.
 

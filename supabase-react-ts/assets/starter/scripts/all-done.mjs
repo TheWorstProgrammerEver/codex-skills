@@ -179,12 +179,21 @@ export const main = async (overrides = {}) => {
     ?? disableSupabaseContainerRestarts
   const stopLocalSupabase = overrides.stopSupabase ?? stopSupabase
   const waitForOff = overrides.waitForEndpointsOff ?? waitForEndpointsOff
+  const readCurrentRuntime = overrides.readRuntimeIdentity ?? readRuntimeIdentity
+  const runWithRuntimeState = overrides.withManagedRuntimeState
+    ?? ((operation) => withManagedRuntimeState(operation))
   const readFinalRuntime = overrides.readFinalRuntime
-    ?? (() => withManagedRuntimeState(() => readRuntimeIdentity()))
+    ?? (() => runWithRuntimeState(() => readCurrentRuntime()))
 
   await stopRuntime()
-  await disableRestarts()
-  await stopLocalSupabase()
+  await runWithRuntimeState(async () => {
+    if (readCurrentRuntime()) {
+      throw new Error('Runtime ownership changed before Supabase shutdown; no replacement generation was disrupted. Retry all-done after inspecting this project runtime.')
+    }
+
+    await disableRestarts()
+    await stopLocalSupabase()
+  })
 
   const statuses = await waitForOff()
   printEndpointStatus(statuses)

@@ -4,7 +4,8 @@ import {
   isProcessExecuting,
   processGroupMembersMatch,
   readProcessGroupMembers,
-  readProcessIdentity
+  readProcessIdentity,
+  stableProcessIdentityMatches
 } from './process-identity.mjs'
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -43,7 +44,43 @@ const waitForProcessGroupExit = async (processGroupId, timeoutMs, pollIntervalMs
   return readProcessGroupMembers(processGroupId).length === 0
 }
 
-const terminateManagedProcess = async ({ child, label }, options) => {
+const getOwnedProcessGroupMembers = ({
+  child,
+  label,
+  leaderIdentity,
+  membersAfterLeaderExit,
+  exitObservationError
+}) => {
+  const processGroupId = child.pid
+  const currentMembers = readProcessGroupMembers(processGroupId)
+
+  if (currentMembers.length === 0) {
+    return []
+  }
+
+  const leader = readProcessIdentity(processGroupId)
+
+  if (
+    isProcessExecuting(leader)
+    && leader.processGroupId === processGroupId
+    && stableProcessIdentityMatches(leaderIdentity, leader)
+  ) {
+    return currentMembers
+  }
+
+  if (
+    exitObservationError
+    || !membersAfterLeaderExit
+    || !processGroupMembersMatch(membersAfterLeaderExit, currentMembers)
+  ) {
+    throw new Error(`${label} process-group ownership is ambiguous; refusing to signal it.`)
+  }
+
+  return currentMembers
+}
+
+const terminateManagedProcess = async (managedProcess, options) => {
+  const { child, label } = managedProcess
   const processGroupId = child.pid
 
   if (!processGroupId) {
@@ -54,19 +91,10 @@ const terminateManagedProcess = async ({ child, label }, options) => {
     return
   }
 
-  const leader = readProcessIdentity(processGroupId)
-  const ownedMembers = readProcessGroupMembers(processGroupId)
+  const ownedMembers = getOwnedProcessGroupMembers(managedProcess)
 
   if (ownedMembers.length === 0) {
     return
-  }
-
-  if (
-    !isProcessExecuting(leader)
-    || leader.processGroupId !== processGroupId
-    || !ownedMembers.some((member) => member.pid === leader.pid)
-  ) {
-    throw new Error(`${label} process-group ownership is ambiguous; refusing to signal it.`)
   }
 
   console.log(`Stopping ${label}...`)
@@ -102,14 +130,37 @@ export const startManagedProcess = (processes, label, command, args) => {
     stdio: 'inherit',
     shell: false
   })
+  const leaderIdentity = readProcessIdentity(child.pid)
+
+  if (
+    !isProcessExecuting(leaderIdentity)
+    || leaderIdentity.processGroupId !== child.pid
+  ) {
+    child.kill('SIGTERM')
+    throw new Error(`Could not capture ${label} isolated process-group ownership.`)
+  }
+
+  const managedProcess = {
+    child,
+    exitObservationError: undefined,
+    label,
+    leaderIdentity,
+    membersAfterLeaderExit: undefined
+  }
 
   child.on('exit', (code) => {
+    try {
+      managedProcess.membersAfterLeaderExit = readProcessGroupMembers(child.pid)
+    } catch (error) {
+      managedProcess.exitObservationError = error
+    }
+
     if (code !== null && code !== 0) {
       console.error(`${label} exited with code ${code}`)
     }
   })
 
-  processes.push({ child, label })
+  processes.push(managedProcess)
 }
 
 export const stopManagedProcesses = async (managedProcesses, overrides = {}) => {

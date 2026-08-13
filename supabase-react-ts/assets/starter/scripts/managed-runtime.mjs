@@ -197,6 +197,29 @@ export const clearRuntimeIdentity = async (identity, overrides = {}) => {
   return coordinate(() => clearRuntimeIdentityIfCurrent(identity, overrides))
 }
 
+const reconcileStoppedRuntimeIdentity = async (identity, overrides) => {
+  const {
+    coordinate,
+    readIdentity,
+    removeIdentity
+  } = overrides
+
+  return coordinate(() => {
+    const current = readIdentity()
+
+    if (!current) {
+      return 'stopped'
+    }
+
+    if (!runtimeIdentityMatches(current, identity)) {
+      return 'state-changed'
+    }
+
+    removeIdentity()
+    return 'stopped'
+  })
+}
+
 export const claimRuntimeIdentity = async (overrides = {}) => {
   if (platform() !== 'linux' && platform() !== 'darwin') {
     throw new Error('Local process management supports Linux and macOS only.')
@@ -328,11 +351,11 @@ export const stopManagedRuntime = async (overrides = {}) => {
     await wait(checkIntervalMs)
 
     if (await inspectProcess(identity) !== 'owned') {
-      return clearRuntimeIdentity(identity, {
+      return reconcileStoppedRuntimeIdentity(identity, {
         coordinate,
         readIdentity,
         removeIdentity
-      }).then((cleared) => cleared ? 'stopped' : 'state-changed')
+      })
     }
   }
 

@@ -41,8 +41,8 @@ Before promising the local Supabase, security, or visual sweep on a fresh host, 
 `npm run all-done` should:
 
 - signal only the current project's persisted, freshly revalidated `get-going` process identity; never use a shared port or host-wide command match as signal authority
-- let that owner stop and await its isolated Vite/Edge Function process groups, with bounded graceful shutdown and freshly revalidated escalation
-- serialize stale-generation removal, replacement publication, and conditional release so a delayed cleanup cannot remove or signal a replacement owner
+- let that owner stop and await its isolated Vite/Edge Function process groups, retaining the stable member snapshot captured if a group leader exits and revalidating it before bounded graceful shutdown or escalation
+- serialize stale-generation removal, replacement publication, and conditional release so a delayed cleanup cannot remove or signal a replacement owner; after a signaled owner terminates, accept its already-absent record as normal self-release, preserve a different generation, and hold generation exclusion across the later Supabase stop effects
 - disable Docker auto-restart for this project's Supabase containers
 - stop Supabase
 - print endpoint status and exit nonzero if project runtime state or any advertised endpoint remains
