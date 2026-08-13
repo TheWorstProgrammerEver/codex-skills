@@ -71,11 +71,17 @@ The starter models multi-tenant access with:
 
 - `profiles`: one row per auth user
 - `workspaces`: tenant/group boundary
-- `workspace_members`: active membership and invited member state
+- `workspace_members`: tenant membership state
 - `workspace_invitations`: first-class pending invitations
 - domain tables such as `tasks` with `workspace_id`
 
 Adapt names to the product, but keep a clear tenant boundary column on tenant-owned tables.
+
+For a schema that duplicates one tenant owner across a principal row and an
+owner membership, use the complete
+[cross-table owner invariant](supabase-owner-invariants.md). New schemas should
+keep active memberships and pending invitations in separate tables rather than
+representing an invitation as a pseudo-member.
 
 ## RLS Helpers
 
@@ -166,6 +172,12 @@ inserted, updated, or deleted at all.
 Prefer invitations as first-class pending records. Accepted/rejected invitations should usually be consumed/deleted once handled.
 
 Do not show full tenant data to invitees until they accept and become active members. It is acceptable for invitees to read only their own invitation rows.
+
+Invitation creation and membership activation are opposing writes. When both
+tables can be written directly or by trusted code, serialize both directions
+at the database boundary so a race cannot leave the same person simultaneously
+active and pending. The [cross-table owner invariant](supabase-owner-invariants.md#serialize-membership-and-invitation-transitions)
+shows the shared-lock and test pattern.
 
 ## Edge Functions
 
