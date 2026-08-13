@@ -110,6 +110,71 @@ Use these helpers in both RLS policies and function-side checks when a defensive
 
 Keep `search_path` explicit on `security definer` functions.
 
+### Current Auth attributes in authorization
+
+Treat the verified JWT subject as identity evidence, not every JWT claim as a
+current user attribute. Supabase notes that
+[`auth.jwt()` data is not always fresh](https://supabase.com/docs/guides/database/postgres/row-level-security#helper-functions).
+In particular, `auth.jwt() ->> 'email'` is the email captured when the access
+token was issued. A completed email change does not rewrite an already-issued
+token, so its former address can remain present until refresh or expiry. Token
+refresh and short expiry reduce that window; they do not close an authorization
+boundary.
+
+Do not use the JWT email claim as the final authorization oracle for an
+email-keyed invitation, entitlement, recovery flow, or destructive action when
+the account email can change. Define one canonical current-email rule instead:
+normalize the email from the trusted current Auth user row whose id equals
+`auth.uid()`, and compare every email-keyed record with that result. Use the
+same rule for discovery, command/RPC authorization, and direct-table RLS so a
+caller cannot select a stale boundary.
+
+When RLS needs the predicate, expose only the current caller's attribute
+through a narrowly scoped helper in a schema that is not exposed by the Data
+API. For example, if lowercase-and-trim is the application's canonical email
+normalization:
+
+```sql
+create schema if not exists private;
+revoke all on schema private from public;
+grant usage on schema private to authenticated;
+
+create function private.current_auth_email()
+returns text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select lower(btrim(auth_user.email))
+  from auth.users as auth_user
+  where auth_user.id = (select auth.uid())
+$$;
+
+revoke all privileges on function private.current_auth_email() from public, anon;
+grant execute on function private.current_auth_email() to authenticated;
+
+-- Use this same expression in invitation SELECT/UPDATE/DELETE policies.
+-- normalized_email = (select private.current_auth_email())
+```
+
+Own the helper with a trusted migration role, fully qualify referenced objects,
+and do not accept a target user id or email parameter. Store invitation or
+entitlement addresses with the same canonical normalization. A missing Auth
+row or email must yield no match and fail closed. Policies and SQL command/RPC
+functions should compare against `private.current_auth_email()` rather than
+reimplementing a JWT-email check; server handlers should apply the equivalent
+current-user predicate when they authorize outside Postgres.
+
+An authenticated Auth `/user` lookup (for example, `auth.getUser()`) can supply
+the current email to a server-side check, but only if that check actually uses
+the returned email through a trusted path. Validating the returned user id and
+then discarding its email before matching `auth.jwt().email` still leaves the
+stale-claim vulnerability. Do not replace that mistake with a caller-supplied
+"current email" parameter; either keep the verified `/user` result inside the
+trusted handler or resolve the attribute again with the canonical database
+helper.
+
 ## Policies
 
 For each app table, decide separately:
@@ -249,6 +314,18 @@ Cover at least:
   the helper allows the entitled owner path, rejects non-entitled or cross-owner
   calls, rejects invalid values or conflicts, and leaves stored rows unchanged
   after denial.
+- For every authorization boundary keyed by an Auth email, keep a live
+  stale-token test. Sign in as `old-address@example.test` and retain that
+  pre-change access token; complete the real Auth email change to
+  `current-address@example.test` without refreshing the retained token; then
+  prove that the old-address-bearing token cannot discover/list, accept,
+  reject, or otherwise exercise an invitation or entitlement for the former
+  address through functions/RPCs or direct-table access. With that same token
+  and user id, prove the current address behaves according to policy. Assert
+  the invitation, entitlement, membership, and related rows remain unchanged
+  after every denied attempt. This matrix must exercise the completed email
+  change and current Auth record, not simulate safety by refreshing the token
+  or waiting for it to expire.
 
 When adding a new table or function request, update both the fixture and security assertions.
 For Supabase/PostgREST array inserts in fixtures, keep every row object in the
