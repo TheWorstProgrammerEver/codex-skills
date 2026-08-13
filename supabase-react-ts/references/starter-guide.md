@@ -91,6 +91,23 @@ npm run get-going
 - generate ignored `public/config.local.json`
 - print localhost and LAN endpoints
 
+Starting services is not a schema-conformance check. The local database backup
+can retain applied migrations from a previously checked-out branch. After a
+branch or worktree change across migration-bearing history, run the read-only
+gate before schema or security integration tests:
+
+```sh
+npm run supabase:check-migrations
+```
+
+`npm run test:security` invokes the same gate automatically. If it reports
+drift and all local data is disposable, explicitly confirm that destructive
+assumption, run `npm run supabase:reset`, rerun the gate, and then run the
+security suite. If any local data must survive, do not reset or mutate migration
+history without operator approval; preserve the reported version sets and ask
+the operator to choose reconciliation, export/rebuild, or an isolated stack.
+See `supabase-security.md` for the complete decision boundary.
+
 Do not rely on `app-health` alone before running security tests. It can still
 return OK while a newly configured business function returns `404`, or while an
 existing business function returns `503` after importing a new shared file that
@@ -156,6 +173,7 @@ npm run build
 npm run preflight
 npm run test:visual
 npm run get-going
+npm run supabase:check-migrations
 npm run test:security
 npm run test:security:signup-disabled # only in the documented disabled-stack mode
 npm run all-done
