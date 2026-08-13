@@ -4,7 +4,8 @@ import { networkInterfaces, platform } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import {
   claimRuntimeIdentity,
-  clearRuntimeIdentity
+  clearRuntimeIdentity,
+  markRuntimeCleanupFailed
 } from './managed-runtime.mjs'
 import {
   startManagedProcess,
@@ -456,7 +457,18 @@ const main = async () => {
     console.log('\nPress Ctrl+C or run npm run all-done to stop the dev processes started by this script.')
     await shutdownRequested
   } finally {
-    await stopManagedProcesses(managedProcesses)
+    try {
+      await stopManagedProcesses(managedProcesses)
+    } catch (error) {
+      try {
+        await markRuntimeCleanupFailed(runtimeIdentity)
+      } catch {
+        throw new Error(`${error.message}\nCould not verify durable child-cleanup failure state. Inspect this project runtime before retrying.`)
+      }
+
+      throw error
+    }
+
     await clearRuntimeIdentity(runtimeIdentity)
   }
 }

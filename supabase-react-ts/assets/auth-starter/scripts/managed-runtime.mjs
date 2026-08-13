@@ -3,6 +3,7 @@ import {
   mkdirSync,
   readFileSync,
   realpathSync,
+  renameSync,
   rmSync,
   rmdirSync,
   writeFileSync
@@ -22,6 +23,10 @@ const runtimeStatePath = fileURLToPath(new URL('../.starter-runtime/get-going.js
 const runtimeProjectRoot = realpathSync(fileURLToPath(new URL('../', import.meta.url)))
 const processMarkerPattern = /^supabase-starter:[a-f0-9]{16}$/
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+const retainedStateRecovery = 'Inspect and stop only processes known to belong to this project, or restart the local machine. Once the old processes cannot still execute, remove .starter-runtime/get-going.json and retry.'
+const retainedCleanupFailure = `Managed-runtime child cleanup failed; its state was retained. ${retainedStateRecovery}`
+const retainedUnprovenCleanup = `Managed-runtime process stopped before child cleanup could be proven; its state was retained. ${retainedStateRecovery}`
+const retainedUnownedRuntime = `Managed-runtime identity is stale or unowned, so child cleanup cannot be proven; its state was retained without signaling. ${retainedStateRecovery}`
 
 export const validateRuntimeIdentity = (
   value,
@@ -30,7 +35,8 @@ export const validateRuntimeIdentity = (
   if (
     typeof value !== 'object'
     || value === null
-    || value.version !== 1
+    || value.version !== 2
+    || (value.cleanupStatus !== 'active' && value.cleanupStatus !== 'failed')
     || !Number.isSafeInteger(value.pid)
     || value.pid <= 1
     || typeof value.marker !== 'string'
@@ -51,6 +57,7 @@ export const validateRuntimeIdentity = (
   ) {
     return {
       bootId: value.bootId,
+      cleanupStatus: value.cleanupStatus,
       marker: value.marker,
       pid: value.pid,
       platform: value.platform,
@@ -66,6 +73,7 @@ export const validateRuntimeIdentity = (
     && /^\S{3}\s+\S{3}\s+\d+\s+\d{2}:\d{2}:\d{2}\s+\d{4}$/.test(value.startTime)
   ) {
     return {
+      cleanupStatus: value.cleanupStatus,
       marker: value.marker,
       pid: value.pid,
       platform: value.platform,
@@ -86,23 +94,25 @@ const runtimeIdentityFromSnapshot = (marker, snapshot) => {
   if (snapshot.platform === 'linux') {
     return validateRuntimeIdentity({
       bootId: snapshot.bootId,
+      cleanupStatus: 'active',
       marker,
       pid: snapshot.pid,
       platform: snapshot.platform,
       projectRoot: runtimeProjectRoot,
       startTimeTicks: snapshot.startTimeTicks,
-      version: 1
+      version: 2
     })
   }
 
   if (snapshot.platform === 'darwin') {
     return validateRuntimeIdentity({
+      cleanupStatus: 'active',
       marker,
       pid: snapshot.pid,
       platform: snapshot.platform,
       projectRoot: runtimeProjectRoot,
       startTime: snapshot.startTime,
-      version: 1
+      version: 2
     })
   }
 
@@ -121,6 +131,20 @@ const persistRuntimeIdentity = (identity) => {
     flag: 'wx',
     mode: 0o600
   })
+}
+
+const replaceRuntimeIdentity = (identity) => {
+  const temporaryPath = `${runtimeStatePath}.${randomBytes(8).toString('hex')}.tmp`
+
+  try {
+    writeFileSync(temporaryPath, `${JSON.stringify(identity)}\n`, {
+      flag: 'wx',
+      mode: 0o600
+    })
+    renameSync(temporaryPath, runtimeStatePath)
+  } finally {
+    rmSync(temporaryPath, { force: true })
+  }
 }
 
 const removeRuntimeIdentity = () => {
@@ -175,6 +199,10 @@ const clearRuntimeIdentityIfCurrent = (identity, overrides = {}) => {
   const current = readIdentity()
 
   if (current && runtimeIdentityMatches(current, identity)) {
+    if (current.cleanupStatus !== 'active') {
+      throw new Error(retainedCleanupFailure)
+    }
+
     removeIdentity()
     return true
   }
@@ -197,11 +225,44 @@ export const clearRuntimeIdentity = async (identity, overrides = {}) => {
   return coordinate(() => clearRuntimeIdentityIfCurrent(identity, overrides))
 }
 
+export const markRuntimeCleanupFailed = async (identity, overrides = {}) => {
+  const readIdentity = overrides.readIdentity ?? readRuntimeIdentity
+  const writeIdentity = overrides.writeIdentity ?? replaceRuntimeIdentity
+  const coordinate = overrides.coordinate
+    ?? ((operation) => coordinateRuntimeState(operation, overrides.coordinatorOptions))
+
+  return coordinate(() => {
+    const current = readIdentity()
+
+    if (!current || !runtimeIdentityMatches(current, identity)) {
+      throw new Error('Could not retain managed-runtime child-cleanup failure because the runtime generation changed. Inspect this project runtime before retrying.')
+    }
+
+    if (current.cleanupStatus === 'failed') {
+      return
+    }
+
+    writeIdentity({
+      ...current,
+      cleanupStatus: 'failed'
+    })
+
+    const published = readIdentity()
+
+    if (
+      !published
+      || published.cleanupStatus !== 'failed'
+      || !runtimeIdentityMatches(published, identity)
+    ) {
+      throw new Error('Could not verify the retained managed-runtime child-cleanup failure. Inspect this project runtime before retrying.')
+    }
+  })
+}
+
 const reconcileStoppedRuntimeIdentity = async (identity, overrides) => {
   const {
     coordinate,
-    readIdentity,
-    removeIdentity
+    readIdentity
   } = overrides
 
   return coordinate(() => {
@@ -215,8 +276,11 @@ const reconcileStoppedRuntimeIdentity = async (identity, overrides) => {
       return 'state-changed'
     }
 
-    removeIdentity()
-    return 'stopped'
+    if (current.cleanupStatus === 'failed') {
+      throw new Error(retainedCleanupFailure)
+    }
+
+    throw new Error(retainedUnprovenCleanup)
   })
 }
 
@@ -229,7 +293,6 @@ export const claimRuntimeIdentity = async (overrides = {}) => {
   const inspectProcess = overrides.inspectProcess ?? inspectRuntimeProcess
   const createIdentity = overrides.createIdentity ?? createCurrentRuntimeIdentity
   const writeIdentity = overrides.writeIdentity ?? persistRuntimeIdentity
-  const removeIdentity = overrides.removeIdentity ?? removeRuntimeIdentity
   const coordinate = overrides.coordinate
     ?? ((operation) => coordinateRuntimeState(operation, overrides.coordinatorOptions))
 
@@ -237,15 +300,17 @@ export const claimRuntimeIdentity = async (overrides = {}) => {
     const existing = readIdentity()
 
     if (existing) {
+      if (existing.cleanupStatus === 'failed') {
+        throw new Error(`Cannot start: ${retainedCleanupFailure}`)
+      }
+
       const status = await inspectProcess(existing)
 
       if (status === 'owned') {
         throw new Error('Cannot start: another get-going process for this project is active.')
       }
 
-      if (!clearRuntimeIdentityIfCurrent(existing, { readIdentity, removeIdentity })) {
-        throw new Error('Cannot start: runtime state changed during stale-state recovery.')
-      }
+      throw new Error(`Cannot start: ${status === 'stopped' ? retainedUnprovenCleanup : retainedUnownedRuntime}`)
     }
 
     const identity = await createIdentity()
@@ -313,7 +378,6 @@ const signalOwnedRuntime = async (identity, inspectProcess, sendSignal) => {
 export const stopManagedRuntime = async (overrides = {}) => {
   const readIdentity = overrides.readIdentity ?? readRuntimeIdentity
   const inspectProcess = overrides.inspectProcess ?? inspectRuntimeProcess
-  const removeIdentity = overrides.removeIdentity ?? removeRuntimeIdentity
   const sendSignal = overrides.sendSignal ?? ((pid, signal) => process.kill(pid, signal))
   const wait = overrides.sleep ?? sleep
   const maxChecks = overrides.maxChecks ?? 80
@@ -329,14 +393,16 @@ export const stopManagedRuntime = async (overrides = {}) => {
       return 'no-record'
     }
 
+    if (identity.cleanupStatus === 'failed') {
+      throw new Error(retainedCleanupFailure)
+    }
+
     const status = await inspectProcess(identity)
 
     if (status === 'stopped' || status === 'unowned') {
-      if (!clearRuntimeIdentityIfCurrent(identity, { readIdentity, removeIdentity })) {
-        return 'state-changed'
-      }
-
-      return status === 'stopped' ? 'already-stopped' : 'stale-record-cleared'
+      throw new Error(status === 'stopped'
+        ? retainedUnprovenCleanup
+        : retainedUnownedRuntime)
     }
 
     await signalOwnedRuntime(identity, inspectProcess, sendSignal)
@@ -353,8 +419,7 @@ export const stopManagedRuntime = async (overrides = {}) => {
     if (await inspectProcess(identity) !== 'owned') {
       return reconcileStoppedRuntimeIdentity(identity, {
         coordinate,
-        readIdentity,
-        removeIdentity
+        readIdentity
       })
     }
   }

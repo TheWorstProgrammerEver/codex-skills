@@ -114,10 +114,15 @@ descendants. Normal owner self-release after signaling is reconciled separately
 from a replacement generation, which remains untouched. Generation exclusion
 stays held while the workflow stops the project-labelled Supabase stack, so a
 replacement cannot claim between owner reconciliation and those stop effects.
+If managed-child cleanup fails, the owner records that result before exiting.
+A later `all-done` or `get-going` retains the failed generation and exits
+nonzero; a terminal owner with only an active record is likewise indeterminate,
+not proof that its descendants stopped. Follow the bounded diagnostic to
+reconcile exact project-owned processes before removing that state.
 It reports success only after runtime state and advertised endpoints are
 terminal. It never treats a listener on the
 shared Vite port or a host-wide command match as permission to signal. If the
-runtime record is malformed, stale, cross-project, or replaced during shutdown,
+runtime record is malformed, stale, cross-project, failed, indeterminate, or replaced during shutdown,
 follow the bounded diagnostic and stop the identified process explicitly before
 retrying.
 

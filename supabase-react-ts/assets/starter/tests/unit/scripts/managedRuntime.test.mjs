@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   claimRuntimeIdentity,
   inspectRuntimeProcess,
+  markRuntimeCleanupFailed,
   stopManagedRuntime,
   validateRuntimeIdentity
 } from '../../../scripts/managed-runtime.mjs'
@@ -9,12 +10,13 @@ import { readProcessIdentity } from '../../../scripts/process-identity.mjs'
 
 const identity = {
   bootId: '01234567-89ab-cdef-0123-456789abcdef',
+  cleanupStatus: 'active',
   marker: 'supabase-starter:0123456789abcdef',
   pid: 4242,
   platform: 'linux',
   projectRoot: '/tmp/example-project',
   startTimeTicks: '123456',
-  version: 1
+  version: 2
 }
 
 const processSnapshot = {
@@ -33,6 +35,11 @@ describe('managed runtime identity', () => {
       { ...identity, projectRoot: '/tmp/another-project' },
       identity.projectRoot
     )).toThrow('belongs to another project')
+
+    expect(() => validateRuntimeIdentity(
+      { ...identity, version: 1 },
+      identity.projectRoot
+    )).toThrow('malformed')
   })
 
   it('requires the complete stable process identity', async () => {
@@ -47,7 +54,7 @@ describe('managed runtime identity', () => {
     )).resolves.toBe('unowned')
   })
 
-  it('recovers an unowned record before publishing a replacement runtime', async () => {
+  it('retains an unowned record instead of forgetting possible child cleanup', async () => {
     const replacement = {
       ...identity,
       marker: 'supabase-starter:fedcba9876543210',
@@ -56,32 +63,85 @@ describe('managed runtime identity', () => {
     }
     let state = identity
 
+    const createIdentity = vi.fn(async () => replacement)
+    const writeIdentity = vi.fn((candidate) => {
+      state = candidate
+    })
+
     await expect(claimRuntimeIdentity({
       coordinate,
-      createIdentity: async () => replacement,
+      createIdentity,
       inspectProcess: async () => 'unowned',
       readIdentity: () => state,
-      removeIdentity: () => {
-        state = undefined
-      },
+      writeIdentity
+    })).rejects.toThrow('child cleanup cannot be proven')
+
+    expect(createIdentity).not.toHaveBeenCalled()
+    expect(writeIdentity).not.toHaveBeenCalled()
+    expect(state).toEqual(identity)
+  })
+
+  it('persists a child-cleanup failure on only the current generation', async () => {
+    let state = identity
+
+    await expect(markRuntimeCleanupFailed(identity, {
+      coordinate,
+      readIdentity: () => state,
       writeIdentity: (candidate) => {
         state = candidate
       }
-    })).resolves.toEqual(replacement)
+    })).resolves.toBeUndefined()
+
+    expect(state).toEqual({
+      ...identity,
+      cleanupStatus: 'failed'
+    })
+
+    const replacement = {
+      ...identity,
+      marker: 'supabase-starter:fedcba9876543210',
+      pid: 4343,
+      startTimeTicks: '654321'
+    }
+    state = replacement
+
+    await expect(markRuntimeCleanupFailed(identity, {
+      coordinate,
+      readIdentity: () => state,
+      writeIdentity: (candidate) => {
+        state = candidate
+      }
+    })).rejects.toThrow('runtime generation changed')
 
     expect(state).toEqual(replacement)
+  })
+
+  it('refuses a replacement start while cleanup failure is retained', async () => {
+    const failedIdentity = {
+      ...identity,
+      cleanupStatus: 'failed'
+    }
+    const inspectProcess = vi.fn()
+
+    await expect(claimRuntimeIdentity({
+      coordinate,
+      inspectProcess,
+      readIdentity: () => failedIdentity
+    })).rejects.toThrow('Cannot start: Managed-runtime child cleanup failed')
+
+    expect(inspectProcess).not.toHaveBeenCalled()
   })
 })
 
 describe('managed runtime shutdown', () => {
-  it('clears a live but unowned record without signaling its process', async () => {
+  it('retains a live but unowned record without signaling its process', async () => {
     const currentProcess = readProcessIdentity(process.pid)
     let state = {
       ...identity,
       ...currentProcess,
       marker: 'supabase-starter:aaaaaaaaaaaaaaaa',
       projectRoot: identity.projectRoot,
-      version: 1
+      version: 2
     }
     const sendSignal = vi.fn()
 
@@ -92,10 +152,54 @@ describe('managed runtime shutdown', () => {
         state = undefined
       },
       sendSignal
-    })).resolves.toBe('stale-record-cleared')
+    })).rejects.toThrow('child cleanup cannot be proven')
 
     expect(sendSignal).not.toHaveBeenCalled()
-    expect(state).toBeUndefined()
+    expect(state).toEqual(expect.objectContaining({
+      cleanupStatus: 'active'
+    }))
+  })
+
+  it('retains a terminal active record when child cleanup is unproven', async () => {
+    let state = identity
+    const removeIdentity = vi.fn(() => {
+      state = undefined
+    })
+
+    await expect(stopManagedRuntime({
+      coordinate,
+      inspectProcess: async () => 'stopped',
+      readIdentity: () => state,
+      removeIdentity,
+      sendSignal: vi.fn()
+    })).rejects.toThrow('stopped before child cleanup could be proven')
+
+    expect(removeIdentity).not.toHaveBeenCalled()
+    expect(state).toEqual(identity)
+  })
+
+  it('retains a terminal child-cleanup failure for bounded recovery', async () => {
+    const failedIdentity = {
+      ...identity,
+      cleanupStatus: 'failed'
+    }
+    let state = failedIdentity
+    const removeIdentity = vi.fn(() => {
+      state = undefined
+    })
+    const sendSignal = vi.fn()
+
+    await expect(stopManagedRuntime({
+      coordinate,
+      inspectProcess: async () => 'stopped',
+      readIdentity: () => state,
+      removeIdentity,
+      sendSignal
+    })).rejects.toThrow('child cleanup failed; its state was retained')
+
+    expect(removeIdentity).not.toHaveBeenCalled()
+    expect(sendSignal).not.toHaveBeenCalled()
+    expect(state).toEqual(failedIdentity)
   })
 
   it('revalidates ownership immediately before signaling', async () => {
@@ -138,7 +242,7 @@ describe('managed runtime shutdown', () => {
     expect(state).toEqual(identity)
   })
 
-  it('reports success only after the owned identity disappears', async () => {
+  it('does not treat manager termination alone as successful child cleanup', async () => {
     let state = identity
     const inspectProcess = vi.fn()
       .mockResolvedValueOnce('owned')
@@ -155,10 +259,10 @@ describe('managed runtime shutdown', () => {
       },
       sendSignal,
       sleep: async () => {}
-    })).resolves.toBe('stopped')
+    })).rejects.toThrow('stopped before child cleanup could be proven')
 
     expect(sendSignal).toHaveBeenCalledWith(identity.pid, 'SIGTERM')
-    expect(state).toBeUndefined()
+    expect(state).toEqual(identity)
   })
 
   it('accepts normal owner self-release after successful termination', async () => {

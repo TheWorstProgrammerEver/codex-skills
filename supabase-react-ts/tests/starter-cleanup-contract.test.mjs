@@ -21,11 +21,19 @@ const requiredSources = {
     /No unowned listener was signaled/,
     /no replacement generation was disrupted/
   ],
+  'scripts/get-going.mjs': [
+    /await markRuntimeCleanupFailed\(runtimeIdentity\)/,
+    /Could not verify durable child-cleanup failure state/
+  ],
   'scripts/managed-runtime.mjs': [
+    /value\.version !== 2/,
+    /cleanupStatus !== 'active' && value\.cleanupStatus !== 'failed'/,
     /projectRoot/,
     /withRuntimeStateCoordinator/,
     /const immediateStatus = await inspectProcess\(identity\)/,
-    /if \(!current\) \{\s+return 'stopped'/,
+    /if \(identity\.cleanupStatus === 'failed'\)/,
+    /if \(current\.cleanupStatus === 'failed'\)/,
+    /stopped before child cleanup could be proven/,
     /did not terminate within the shutdown deadline/
   ],
   'scripts/managed-processes.mjs': [
@@ -39,11 +47,13 @@ const requiredSources = {
   ],
   'tests/unit/scripts/managedRuntime.test.mjs': [
     /accepts normal owner self-release after successful termination/,
-    /preserves a replacement generation after the old owner terminates/
+    /preserves a replacement generation after the old owner terminates/,
+    /retains a terminal child-cleanup failure for bounded recovery/
   ],
   'tests/unit/scripts/allDone.test.mjs': [
     /does not stop Supabase after a replacement runtime claims ownership/,
-    /holds generation exclusion across every Supabase stop effect/
+    /holds generation exclusion across every Supabase stop effect/,
+    /retains failed child cleanup after the manager exits instead of reporting success/
   ],
   'tests/visual/supabaseTestAuth.ts': [
     /url\.protocol !== 'http:' \|\| !loopbackHosts\.has\(url\.hostname\)/,
@@ -79,7 +89,9 @@ const validateStarter = async (starterRoot) => {
 test('both starters retain the cleanup safety contract', async () => {
   await Promise.all(starterRoots.map(validateStarter))
 
-  for (const relativePath of Object.keys(requiredSources)) {
+  for (const relativePath of Object.keys(requiredSources).filter((path) => (
+    path !== 'scripts/get-going.mjs'
+  ))) {
     const sources = await Promise.all(starterRoots.map((root) => (
       readFile(path.join(root, relativePath), 'utf8')
     )))
@@ -108,8 +120,13 @@ test('unsafe cleanup mutations fail the outer contract', async () => {
       ],
       [
         'scripts/managed-runtime.mjs',
-        'if (!current) {',
+        "if (identity.cleanupStatus === 'failed') {",
         'if (false) {'
+      ],
+      [
+        'scripts/get-going.mjs',
+        'await markRuntimeCleanupFailed(runtimeIdentity)',
+        'await clearRuntimeIdentity(runtimeIdentity)'
       ],
       [
         'scripts/managed-processes.mjs',

@@ -86,10 +86,6 @@ const stopManagedDevRuntime = async () => {
 
   if (result === 'no-record') {
     console.log('OK  No project-managed dev runtime is recorded')
-  } else if (result === 'already-stopped') {
-    console.log('OK  Recorded project dev runtime was already stopped')
-  } else if (result === 'stale-record-cleared') {
-    console.log('OK  Removed stale runtime state without signaling its unowned process')
   } else if (result === 'state-changed') {
     throw new Error('Runtime ownership changed during shutdown; no replacement process was signaled. Retry all-done after inspecting this project runtime.')
   }

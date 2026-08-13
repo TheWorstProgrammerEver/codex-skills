@@ -1179,11 +1179,13 @@ so every ownership decision and denied signal is observable.
   independent watchdog and `finally` cleanup. Use fakes for PID reuse and
   reboot cases; tests must not wait for the host kernel to reproduce either
   event.
-- For project lifecycle state, deterministically coordinate simultaneous stale
-  recoverers, replacement after an old observer pauses, and delayed release by
-  an owner that has already lost its generation. Require one serialized
-  replacement, a fresh generation read inside every takeover/release critical
-  section, and preservation of the replacement state. Add an unrelated
+- For project lifecycle state, deterministically coordinate simultaneous
+  initial claimers, claim attempts against a retained failed or indeterminate
+  generation, replacement after an old observer pauses, and delayed release by
+  an owner that has already lost its generation. Require one serialized owner
+  from initially absent state; require every claimant against unresolved state
+  to fail without removing it; require a fresh generation read inside every
+  claim/release critical section; and preserve replacement state. Add an unrelated
   listener and an unowned live-PID control that prove neither shared-port nor
   command discovery reaches the signal sink.
 - Run the real accepting-child and resistant same-group descendant fixtures on
@@ -1198,7 +1200,14 @@ so every ownership decision and denied signal is observable.
   replacement generation remains preserved and reported as changed state. Add
   a replacement-publication barrier between manager reconciliation and each
   later dependency-stop effect; the replacement must either remain excluded or
-  make the shutdown fail before the first such effect.
+  make the shutdown fail before the first such effect. Finally, inject managed
+  child-cleanup failure, let the manager exit, and retry through the production
+  outer lifecycle command with a stable test-owned descendant still executing.
+  The retry must retain the failed generation, exit nonzero before later stop
+  effects, and give bounded manual reconciliation guidance. Mutate away the
+  persisted failure check and require this outer fixture to fail. Cover a
+  terminal manager whose active record remains separately; that crash window
+  is indeterminate and must not be reclassified as successful child cleanup.
 
 #### Cancellation Settlement Race Fixtures
 

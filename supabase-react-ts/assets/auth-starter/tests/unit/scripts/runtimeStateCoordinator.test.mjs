@@ -8,12 +8,13 @@ import { acquireRuntimeStateCoordinator } from '../../../scripts/runtime-state-c
 
 const staleIdentity = {
   bootId: '01234567-89ab-cdef-0123-456789abcdef',
+  cleanupStatus: 'active',
   marker: 'supabase-starter:0123456789abcdef',
   pid: 4242,
   platform: 'linux',
   projectRoot: '/tmp/example-project',
   startTimeTicks: '123456',
-  version: 1
+  version: 2
 }
 
 const replacementIdentity = {
@@ -51,26 +52,19 @@ const getAvailablePort = () => new Promise((resolve, reject) => {
 })
 
 describe('runtime state coordination', () => {
-  it('admits one replacement when stale recoverers contend', async () => {
+  it('admits one owner when initial claimers contend', async () => {
     const port = await getAvailablePort()
     const firstEntered = deferred()
     const finishFirst = deferred()
     const secondWaiting = deferred()
     const retrySecond = deferred()
-    const inspectedMarkers = []
-    let state = staleIdentity
+    let state
     let first
     let second
 
     const shared = {
-      inspectProcess: async (candidate) => {
-        inspectedMarkers.push(candidate.marker)
-        return candidate.marker === staleIdentity.marker ? 'unowned' : 'owned'
-      },
+      inspectProcess: async () => 'owned',
       readIdentity: () => state,
-      removeIdentity: () => {
-        state = undefined
-      },
       writeIdentity: (candidate) => {
         if (state) {
           const error = new Error('exists')
@@ -114,23 +108,52 @@ describe('runtime state coordination', () => {
       await secondWaiting.promise
 
       expect(state).toBeUndefined()
-      expect(inspectedMarkers).toEqual([staleIdentity.marker])
-
       finishFirst.resolve()
       await expect(first).resolves.toEqual(replacementIdentity)
       retrySecond.resolve()
 
       await expect(second).rejects.toThrow('another get-going process')
       expect(state).toEqual(replacementIdentity)
-      expect(inspectedMarkers).toEqual([
-        staleIdentity.marker,
-        replacementIdentity.marker
-      ])
     } finally {
       finishFirst.resolve()
       retrySecond.resolve()
       await Promise.allSettled([first, second].filter(Boolean))
     }
+  })
+
+  it('retains one unresolved stale generation when recoverers contend', async () => {
+    const port = await getAvailablePort()
+    let state = staleIdentity
+    const createIdentity = vi.fn(async () => replacementIdentity)
+    const removeIdentity = vi.fn(() => {
+      state = undefined
+    })
+    const writeIdentity = vi.fn((candidate) => {
+      state = candidate
+    })
+    const claim = () => claimRuntimeIdentity({
+      coordinatorOptions: { port },
+      createIdentity,
+      inspectProcess: async () => 'unowned',
+      readIdentity: () => state,
+      removeIdentity,
+      writeIdentity
+    })
+
+    const results = await Promise.allSettled([claim(), claim()])
+
+    expect(results).toEqual([
+      expect.objectContaining({ status: 'rejected' }),
+      expect.objectContaining({ status: 'rejected' })
+    ])
+    expect(results.map((result) => result.reason.message)).toEqual([
+      expect.stringContaining('child cleanup cannot be proven'),
+      expect.stringContaining('child cleanup cannot be proven')
+    ])
+    expect(createIdentity).not.toHaveBeenCalled()
+    expect(removeIdentity).not.toHaveBeenCalled()
+    expect(writeIdentity).not.toHaveBeenCalled()
+    expect(state).toEqual(staleIdentity)
   })
 
   it('leaves a replacement owner intact when an old release was delayed', async () => {

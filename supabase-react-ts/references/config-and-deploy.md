@@ -42,12 +42,12 @@ Before promising the local Supabase, security, or visual sweep on a fresh host, 
 
 - signal only the current project's persisted, freshly revalidated `get-going` process identity; never use a shared port or host-wide command match as signal authority
 - let that owner stop and await its isolated Vite/Edge Function process groups, retaining the stable member snapshot captured if a group leader exits and revalidating it before bounded graceful shutdown or escalation
-- serialize stale-generation removal, replacement publication, and conditional release so a delayed cleanup cannot remove or signal a replacement owner; after a signaled owner terminates, accept its already-absent record as normal self-release, preserve a different generation, and hold generation exclusion across the later Supabase stop effects
+- serialize replacement publication and conditional release so a delayed cleanup cannot remove or signal a replacement owner; after a signaled owner terminates, accept its already-absent record as normal successful self-release, preserve a different generation, and retain a same-generation failed or indeterminate child-cleanup record for explicit reconciliation; hold generation exclusion across the later Supabase stop effects
 - disable Docker auto-restart for this project's Supabase containers
 - stop Supabase
 - print endpoint status and exit nonzero if project runtime state or any advertised endpoint remains
 
-Missing, malformed, cross-project, stale, or changing runtime state must fail closed. A stale record may be removed only inside the same crash-released coordinator used to publish replacements, after the current generation is re-read. An unowned live PID or listener can be reported with bounded manual recovery guidance, but must not be signaled.
+Missing, malformed, cross-project, stale, or changing runtime state must fail closed. A terminal or unowned manager record is not proof that its children stopped: retain that generation until the exact project-owned processes are reconciled, then remove its state explicitly using the bounded guidance. An unowned live PID or listener can be reported, but must not be signaled.
 
 Treat exact `192.168.*` addresses as ephemeral. Scripts should discover them. Local Supabase containers should not auto-resurrect when Docker Desktop starts; target only containers labelled with the current `supabase/config.toml` `project_id`, and do not change global Docker Desktop settings.
 
