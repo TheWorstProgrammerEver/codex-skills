@@ -1403,6 +1403,43 @@ At minimum, exercise this matrix with a documented page size such as 50:
 Follow the implementation contract in
 [`general-implementation.md`](general-implementation.md#complete-evidence-for-negative-authorization-predicates).
 
+### Exact Keyset Pagination Cursor Tests
+
+Exercise the production cursor serializer, decoder, query adapter, and database
+ordering contract together. A helper-only round trip can preserve bytes while
+the production query still compares a normalized or incomplete tuple.
+
+At minimum, cover this matrix:
+
+| Scenario | Required result |
+| --- | --- |
+| Sort timestamp has precision beyond runtime milliseconds | A value such as `2026-08-13T04:15:55.824731Z` survives encode/decode byte-for-byte, and the next query returns a row whose timestamp sorts between `.824731Z` and `.824000Z`. |
+| Equal primary sort values cross a page boundary | The deterministic unique tie-breaker appears in the cursor and continuation predicate; every row appears exactly once in the declared order. |
+| Missing, extra, malformed, unsupported, or out-of-range cursor component | Decoding fails before the query adapter executes, with no best-effort normalization or partial predicate. |
+| Omitted, invalid, or excessive requested page size | The adapter applies its bounded default or rejects before querying; no path can request an unbounded page. |
+| A concurrent row is inserted ahead of the cursor between pages | Continuing from the original cursor returns each remaining original row exactly once and does not repeat a prior row; the new leading row is visible only to a fresh traversal unless snapshot semantics say otherwise. |
+
+- Assert both the decoded tuple and the exact query parameters. Include sort
+  directions, null handling, collation-sensitive components when applicable,
+  and the exclusive comparison shape so encoder and query defects cannot mask
+  each other.
+- Use a real database integration test when database parsing, collation, null
+  ordering, or timestamp comparison is part of the contract. Keep a focused
+  serializer test as the fast byte-preservation diagnostic, but do not use it
+  alone to claim query correctness.
+- Mutation-check the precision boundary: replace the cursor timestamp with the
+  result of a JavaScript `Date.toISOString()` round trip, or equivalently
+  truncate its fractional seconds to milliseconds. Require the continuation
+  assertion to fail by demonstrating the skipped between-value row. Build the
+  expected timestamp independently from the encoder so the same normalization
+  defect cannot change both sides of the assertion.
+- Also mutate away the unique tie-breaker, make the comparison inclusive, and
+  move validation after query construction. Require at least one focused test
+  to fail for each mutation before accepting the cursor contract.
+
+Follow the implementation contract in
+[`general-implementation.md`](general-implementation.md#preserve-exact-keyset-cursor-tuples).
+
 ### File URL To Native Path Boundaries
 
 - Treat URL-syntax validation and decoded native-path validation as separate
