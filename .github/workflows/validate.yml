@@ -1,0 +1,47 @@
+name: Validate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  repository:
+    name: Repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.12.0
+      - run: npm test
+      - run: npm run list:skills
+
+  starter-lifecycle:
+    name: Starter lifecycle (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          cache: npm
+          cache-dependency-path: supabase-react-ts/assets/auth-starter/package-lock.json
+          node-version: 22.12.0
+      - working-directory: supabase-react-ts/assets/auth-starter
+        run: npm ci
+      - working-directory: supabase-react-ts/assets/auth-starter
+        run: npm run lint
+      - working-directory: supabase-react-ts/assets/auth-starter
+        run: npm test
+      - working-directory: supabase-react-ts/assets/auth-starter
+        run: npm run build

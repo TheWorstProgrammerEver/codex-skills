@@ -892,6 +892,18 @@ reuse the PID and the probe also succeeds for an unreaped zombie.
   boundary. Repeat the ownership check before escalation. If the recorded
   leader has exited, do not treat its stale group number as authority: require
   stable ownership evidence for the remaining targets or decline the signal.
+- For project lifecycle commands, bind the persisted generation to the
+  canonical project root as well as the stable manager identity. Keep stale
+  removal, replacement publication, and conditional release under one
+  crash-released coordinator, and re-read the current generation inside that
+  coordinator on every takeover and release path. A delayed old release must
+  leave a replacement generation intact.
+- Treat listener, port, endpoint, and process-name discovery as observation,
+  never signal authority. Prefer signaling a freshly revalidated project
+  manager that retains the child handles and isolated process groups it
+  launched. If state is missing, malformed, cross-project, stale, or changes
+  before signaling, fail closed with bounded recovery guidance and do not
+  substitute `lsof`, `pgrep`, command matching, or a shared port.
 
 Use the deterministic scenarios in
 [`automated-testing.md`](automated-testing.md#recovery-process-identity-tests).

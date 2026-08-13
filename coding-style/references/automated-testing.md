@@ -1179,6 +1179,18 @@ so every ownership decision and denied signal is observable.
   independent watchdog and `finally` cleanup. Use fakes for PID reuse and
   reboot cases; tests must not wait for the host kernel to reproduce either
   event.
+- For project lifecycle state, deterministically coordinate simultaneous stale
+  recoverers, replacement after an old observer pauses, and delayed release by
+  an owner that has already lost its generation. Require one serialized
+  replacement, a fresh generation read inside every takeover/release critical
+  section, and preservation of the replacement state. Add an unrelated
+  listener and an unowned live-PID control that prove neither shared-port nor
+  command discovery reaches the signal sink.
+- Run the real accepting-child and resistant same-group descendant fixtures on
+  every operating-system family advertised by the lifecycle scripts. Parser
+  tests for another platform do not replace its real observation, graceful
+  shutdown, bounded escalation, and terminal-state evidence; keep the CI
+  matrix explicit so one platform cannot silently skip the fixture.
 
 #### Cancellation Settlement Race Fixtures
 

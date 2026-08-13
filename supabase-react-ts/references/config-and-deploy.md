@@ -31,6 +31,7 @@ Prefer scripts over one-off command sequences.
 - disable Docker auto-restart for this project's Supabase containers
 - serve local Edge Functions
 - validate every enabled `[functions.*]` route from `supabase/config.toml`, not only the health function
+- claim a project-local runtime generation before launching dev processes and reject an already-responding Vite port as ambiguous
 - start Vite with `--host 0.0.0.0`
 - generate ignored `public/config.local.json`
 - print app, Supabase API, Studio, Mailpit, and health endpoints for localhost and LAN
@@ -39,11 +40,14 @@ Before promising the local Supabase, security, or visual sweep on a fresh host, 
 
 `npm run all-done` should:
 
-- stop Vite/dev processes
-- stop local Edge Functions
+- signal only the current project's persisted, freshly revalidated `get-going` process identity; never use a shared port or host-wide command match as signal authority
+- let that owner stop and await its isolated Vite/Edge Function process groups, with bounded graceful shutdown and freshly revalidated escalation
+- serialize stale-generation removal, replacement publication, and conditional release so a delayed cleanup cannot remove or signal a replacement owner
 - disable Docker auto-restart for this project's Supabase containers
 - stop Supabase
-- print endpoint status
+- print endpoint status and exit nonzero if project runtime state or any advertised endpoint remains
+
+Missing, malformed, cross-project, stale, or changing runtime state must fail closed. A stale record may be removed only inside the same crash-released coordinator used to publish replacements, after the current generation is re-read. An unowned live PID or listener can be reported with bounded manual recovery guidance, but must not be signaled.
 
 Treat exact `192.168.*` addresses as ephemeral. Scripts should discover them. Local Supabase containers should not auto-resurrect when Docker Desktop starts; target only containers labelled with the current `supabase/config.toml` `project_id`, and do not change global Docker Desktop settings.
 
