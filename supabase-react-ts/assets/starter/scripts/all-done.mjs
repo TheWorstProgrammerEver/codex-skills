@@ -1,11 +1,18 @@
 import { spawn } from 'node:child_process'
 import { readFileSync } from 'node:fs'
+import { pathToFileURL } from 'node:url'
+import {
+  readRuntimeIdentity,
+  stopManagedRuntime,
+  withManagedRuntimeState
+} from './managed-runtime.mjs'
 
 const appPort = 5173
 const supabasePort = 54321
 const studioPort = 54323
 const mailPort = 54324
 const supabaseConfigPath = 'supabase/config.toml'
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 const run = (command, args, options = {}) => new Promise((resolve, reject) => {
   const child = spawn(command, args, {
@@ -63,29 +70,6 @@ const httpOk = async (url) => {
   }
 }
 
-const pidsListeningOnPort = async (port) => {
-  const result = await tryRun('lsof', ['-ti', `tcp:${port}`], { capture: true })
-
-  if (!result.ok) {
-    return []
-  }
-
-  return [...new Set(result.stdout
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean))]
-}
-
-const killPids = async (label, pids) => {
-  if (pids.length === 0) {
-    console.log(`OK  ${label} already stopped`)
-    return
-  }
-
-  console.log(`Stopping ${label} (${pids.join(', ')})...`)
-  await tryRun('kill', pids)
-}
-
 const getSupabaseProjectId = () => {
   const config = readFileSync(supabaseConfigPath, 'utf8')
   const match = config.match(/^project_id\s*=\s*"([^"]+)"\s*$/m)
@@ -97,17 +81,14 @@ const getSupabaseProjectId = () => {
   return match[1]
 }
 
-const stopProcessMatches = async (label, pattern) => {
-  const result = await tryRun('pgrep', ['-f', pattern], { capture: true })
-  const currentPid = String(process.pid)
-  const pids = result.ok
-    ? result.stdout
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((pid) => pid && pid !== currentPid)
-    : []
+const stopManagedDevRuntime = async () => {
+  const result = await stopManagedRuntime()
 
-  await killPids(label, [...new Set(pids)])
+  if (result === 'no-record') {
+    console.log('OK  No project-managed dev runtime is recorded')
+  } else if (result === 'state-changed') {
+    throw new Error('Runtime ownership changed during shutdown; no replacement process was signaled. Retry all-done after inspecting this project runtime.')
+  }
 }
 
 const disableSupabaseContainerRestarts = async () => {
@@ -133,7 +114,11 @@ const disableSupabaseContainerRestarts = async () => {
   }
 
   console.log('Disabling Docker auto-restart for local Supabase containers...')
-  await tryRun('docker', ['update', '--restart=no', ...containerIds])
+  const update = await tryRun('docker', ['update', '--restart=no', ...containerIds])
+
+  if (!update.ok) {
+    throw new Error('Could not disable restart for this project\'s local Supabase containers.')
+  }
 }
 
 const stopSupabase = async () => {
@@ -148,36 +133,83 @@ const stopSupabase = async () => {
   throw new Error('Supabase did not stop cleanly.')
 }
 
-const printEndpointStatus = async () => {
-  const checks = [
-    ['App', `http://127.0.0.1:${appPort}/`],
-    ['Supabase API', `http://127.0.0.1:${supabasePort}/auth/v1/settings`],
-    ['Studio', `http://127.0.0.1:${studioPort}`],
-    ['Mailpit', `http://127.0.0.1:${mailPort}`]
-  ]
+const endpointChecks = [
+  ['App', `http://127.0.0.1:${appPort}/`],
+  ['Supabase API', `http://127.0.0.1:${supabasePort}/auth/v1/settings`],
+  ['Studio', `http://127.0.0.1:${studioPort}`],
+  ['Mailpit', `http://127.0.0.1:${mailPort}`]
+]
 
+const getEndpointStatuses = () => Promise.all(endpointChecks.map(async ([label, url]) => ({
+  label,
+  running: await httpOk(url),
+  url
+})))
+
+const waitForEndpointsOff = async () => {
+  for (let check = 0; check < 20; check += 1) {
+    const statuses = await getEndpointStatuses()
+
+    if (statuses.every(({ running }) => !running)) {
+      return statuses
+    }
+
+    await sleep(250)
+  }
+
+  return getEndpointStatuses()
+}
+
+const printEndpointStatus = (statuses) => {
   console.log('\nLocal endpoint status')
   console.log('--------------------------------')
 
-  for (const [label, url] of checks) {
-    const running = await httpOk(url)
-    const status = running ? 'RUN' : 'OFF'
-
-    console.log(`${status} ${label.padEnd(14)} ${url}`)
+  for (const { label, running, url } of statuses) {
+    console.log(`${running ? 'RUN' : 'OFF'} ${label.padEnd(14)} ${url}`)
   }
 }
 
-const main = async () => {
-  await killPids('Team Tasks dev server', await pidsListeningOnPort(appPort))
-  await stopProcessMatches('Supabase Edge Functions', 'supabase functions serve')
-  await disableSupabaseContainerRestarts()
-  await stopSupabase()
-  await printEndpointStatus()
+export const main = async (overrides = {}) => {
+  const stopRuntime = overrides.stopManagedDevRuntime ?? stopManagedDevRuntime
+  const disableRestarts = overrides.disableSupabaseContainerRestarts
+    ?? disableSupabaseContainerRestarts
+  const stopLocalSupabase = overrides.stopSupabase ?? stopSupabase
+  const waitForOff = overrides.waitForEndpointsOff ?? waitForEndpointsOff
+  const readCurrentRuntime = overrides.readRuntimeIdentity ?? readRuntimeIdentity
+  const runWithRuntimeState = overrides.withManagedRuntimeState
+    ?? ((operation) => withManagedRuntimeState(operation))
+  const readFinalRuntime = overrides.readFinalRuntime
+    ?? (() => runWithRuntimeState(() => readCurrentRuntime()))
+
+  await stopRuntime()
+  await runWithRuntimeState(async () => {
+    if (readCurrentRuntime()) {
+      throw new Error('Runtime ownership changed before Supabase shutdown; no replacement generation was disrupted. Retry all-done after inspecting this project runtime.')
+    }
+
+    await disableRestarts()
+    await stopLocalSupabase()
+  })
+
+  const statuses = await waitForOff()
+  printEndpointStatus(statuses)
+  const running = statuses.filter((status) => status.running)
+  const runtimeIdentity = await readFinalRuntime()
+
+  if (runtimeIdentity) {
+    throw new Error('Local shutdown is incomplete because a project-managed runtime remains. Retry all-done after inspecting that process.')
+  }
+
+  if (running.length > 0) {
+    throw new Error(`Local shutdown is incomplete; still responding: ${running.map(({ label }) => label).join(', ')}. No unowned listener was signaled.`)
+  }
 
   console.log('\nAll done.')
 }
 
-main().catch((error) => {
-  console.error(error.message)
-  process.exit(1)
-})
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error(error.message)
+    process.exitCode = 1
+  })
+}

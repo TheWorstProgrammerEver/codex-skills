@@ -263,3 +263,19 @@ Changing `supabase/config.toml` while Auth is running is not evidence that the n
 ## Local Only
 
 Security tests should require local endpoints and keys. Never point them at production or shared test environments unless the user explicitly designs that workflow.
+
+Before constructing a service-role admin client, load the browser test target
+from its committed test config and load admin credentials only from the local
+Supabase CLI status for the current project. Require both URLs to be explicit
+HTTP loopback origins and to match exactly, including host spelling and port;
+do not fall through to ambient `SUPABASE_URL` or service-role environment
+variables. Reject hosted targets and origin mismatches before client
+construction or any request.
+
+Auth-user cleanup must paginate `listUsers` until every requested email is
+found or authoritative terminal metadata proves it absent. Validate page data
+and next-page metadata, reject repeated or non-advancing pages, and apply a
+documented page bound that fails closed rather than pretending the collection
+was exhausted. After deletion responses succeed, traverse again and fail the
+test if any requested account remains. Keep later-page, malformed metadata,
+no-progress, and unsuccessful-deletion controls in the starter unit suite.
