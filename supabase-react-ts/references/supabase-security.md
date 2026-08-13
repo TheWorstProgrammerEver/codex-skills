@@ -90,6 +90,13 @@ idempotent retries, use the complete
 lock, current-principal authorization, sequence allocation, effect row, and
 idempotency row form one transaction boundary.
 
+For exact unread, acknowledgement, reconnect, or processing state over that
+ordered stream, use the
+[membership watermark pattern](supabase-membership-watermarks.md). Own the
+monotonic boundary through the active membership, advance the sender in the
+successful append transaction, and compose durable state with pagination
+cursors without allowing either boundary to regress.
+
 ## RLS Helpers
 
 Prefer small SQL helper functions for repeated policy conditions:
