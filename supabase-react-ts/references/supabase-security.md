@@ -18,6 +18,53 @@ Therefore:
 - RLS must protect direct table access independently of function code.
 - Security tests must exercise both functions and direct table access.
 
+## Project Keys And Principal Credentials
+
+[Supabase API keys](https://supabase.com/docs/guides/getting-started/api-keys)
+identify which application component is accessing a project; they do not
+identify a human or machine principal. Keep project access and principal
+authentication as separate decisions:
+
+- Use a publishable key, or legacy `anon` key, for a public application
+  component. Treat it as public transport metadata and pair it with a valid
+  Supabase Auth session when the operation requires a human principal. RLS then
+  runs as `authenticated`; without a session, the caller remains `anon`.
+- Use a secret key, or legacy `service_role` key, only inside a trusted backend
+  that is fully controlled and already authorizes its callers. These keys use
+  the `service_role`, which has `BYPASSRLS`. Never hand one to a browser,
+  packaged client, untrusted agent, or external machine as its identity. Even a
+  separately named secret key identifies a backend component, not an
+  RLS-constrained application principal.
+- Prefer Supabase Auth whenever it provides the required principal lifecycle
+  and non-interactive flow. If a machine principal instead needs its own
+  scoped, rotatable, and revocable credential, generate a high-entropy opaque
+  application credential, reveal it once, and persist only a strong one-way
+  digest. Verification must resolve an active credential to exactly one
+  server-side principal, fail closed on no or multiple matches, and return only
+  a capability that performs business data access under the same RLS-backed
+  authorization rules as a human caller. Do not use a service-role client as a
+  substitute for that principal boundary.
+
+### Credential Selection At Edge Functions
+
+When `verify_jwt = false`, the function must select and validate its
+authentication mode itself. Some local or hosted gateway paths can forward a
+public project credential in both `apikey` and `Authorization: Bearer ...`.
+Recognize an exact configured public project credential as application
+transport, never as a user session.
+
+Make principal selection authoritative and fail closed:
+
+- A bearer value other than a recognized project credential selects the human
+  session adapter. If JWT validation fails, reject the request; do not fall
+  back to a simultaneously supplied machine credential.
+- A recognized public project credential plus one opaque machine credential
+  may select the machine adapter. Invalid, revoked, expired, or ambiguous
+  machine credentials must be rejected before business dispatch.
+- Reject conflicting principal credentials rather than trying adapters until
+  one succeeds. Derive principal, tenant, roles, and entitlements server-side;
+  ignore caller-supplied identity or privilege claims.
+
 ## Schema Pattern
 
 The starter models multi-tenant access with:
@@ -146,6 +193,22 @@ Cover at least:
 
 - Anonymous users cannot call business functions.
 - Anonymous users cannot read app tables directly.
+- A browser publishable key plus a valid human JWT enters the human's
+  RLS-scoped context, while the publishable key alone grants no user identity.
+- A trusted backend secret reaches only its intended privileged path. Static
+  artifacts, client responses, errors, metrics, and logs contain no raw secret.
+- Two machine credentials map one-to-one to different principals and cannot
+  read, mutate, select, or impersonate each other's data or authorization
+  context.
+- Invalid and revoked machine credentials fail, a replacement credential works
+  after rotation, and the replaced credential remains denied.
+- Invalid human JWT plus a valid machine credential, multiple principal
+  credentials, and other mixed-mode downgrade attempts fail without fallback.
+- Logs and errors omit raw credentials and stored digests, and denial paths
+  leave business data unchanged.
+- Reject any design that gives an untrusted machine a secret or legacy
+  service-role key: its `BYPASSRLS` authority cannot represent that machine as
+  a constrained principal.
 - Authenticated users can only load tenant data they belong to through functions.
 - Authenticated users can only read tenant rows they belong to through direct table access.
 - Pending invitees see invitation state but not tenant rows.
