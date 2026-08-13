@@ -45,4 +45,5 @@ Reference starters:
 - Avoid large global stores. Prefer composed hooks, view models, and pure state update helpers.
 - Mutating commands should return minimal affected DTOs; explicit queries load explicit state.
 - Keep local-only generated files ignored. Do not commit machine-specific LAN config.
+- Treat frontend signup visibility and authentication-method flags as presentation capabilities only. Supabase Auth's project-wide and provider-specific signup settings are the authoritative enrolment controls.
 - After scaffolding, run a placeholder/name sweep for `Team Tasks|teamTasks|team_tasks|team-tasks|__APP_` and fix any unintended matches before finishing.
