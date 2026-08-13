@@ -6,6 +6,7 @@ import {
   createAdminClient,
   createAnonymousClient,
   createSignedInClient,
+  getLocalSupabaseConfig,
   requireLocalFunctionsReady
 } from './localSupabase'
 import {
@@ -81,6 +82,37 @@ afterAll(async () => {
 })
 
 describe('app security integration', () => {
+  test('app health owns only its exact local gateway path', async () => {
+    const { url } = getLocalSupabaseConfig()
+    const exact = await fetch(`${url}/functions/v1/app-health`)
+    const suffix = await fetch(`${url}/functions/v1/app-health/unexpected`)
+
+    expect(exact.status).toBe(200)
+    expect(await exact.json()).toMatchObject({ ok: true, service: 'app-health' })
+    expect(suffix.status).toBe(404)
+    expect(await suffix.json()).toEqual({ error: 'Not found' })
+  })
+
+  test('the business function rejects an unowned gateway suffix', async () => {
+    const { data: { session } } = await ownerClient.auth.getSession()
+    const { publishableKey, url } = getLocalSupabaseConfig()
+
+    expect(session).toBeTruthy()
+
+    const response = await fetch(`${url}/functions/v1/app/unexpected`, {
+      method: 'POST',
+      headers: {
+        apikey: publishableKey,
+        authorization: `Bearer ${session?.access_token}`,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({ identifier: appRequestIdentifiers.load, params: {} })
+    })
+
+    expect(response.status).toBe(404)
+    expect(await response.json()).toEqual({ error: 'Not found' })
+  })
+
   test('anonymous users cannot call business functions', async () => {
     for (const identifier of appRequestNames) {
       const { data, error } = await invokeApp(anonymousClient, identifier, {})

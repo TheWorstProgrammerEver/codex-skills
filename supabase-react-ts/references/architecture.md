@@ -78,6 +78,50 @@ export const createThingHandler = createAppRequestHandlerFactory(
 
 Split handler files by domain capability as they grow. Keep shared helpers in function-local helpers, mappers, or profile modules.
 
+## Edge Function Path Ownership
+
+A Supabase Edge Function name is a routing prefix, not an exact-path boundary.
+The gateway forwards path segments after the function-name prefix, so a
+deployed `app-health` function can also receive `/app-health/unexpected` unless
+the handler rejects it.
+
+Declare the runtime-visible pathname ownership of every public function before
+authentication, database access, or any other privileged effect. Account for
+the documented function-relative path and any explicitly supported custom
+gateway mapping; do not compare against a public gateway prefix that the
+runtime has already removed.
+
+For a single-route function, compare `new URL(request.url).pathname` with its
+one exact owned path and reject every other path before constructing or calling
+an effect adapter. A command/query function that dispatches by a request body
+identifier is still single-route at the HTTP layer and should own its one
+pathname exactly.
+
+For an intentionally multi-route function, declare the complete owned route
+set with an explicit table or bounded matcher, then reject anything no route
+owns. Do not replace that design with a blanket suffix rejection, and do not
+treat `pathname.startsWith(functionPrefix)` as route authorization:
+
+```ts
+const routes = new Map<string, (request: Request) => Promise<Response>>([
+  ['/callbacks/authorize', authorizeCallback],
+  ['/callbacks/complete', completeCallback]
+])
+
+const route = routes.get(new URL(request.url).pathname)
+
+if (!route) {
+  return Response.json({ error: 'Not found' }, { status: 404 })
+}
+
+return route(request)
+```
+
+When a route owns path parameters, make its accepted segment count, decoding,
+and value constraints explicit in the matcher. Route ownership decides whether
+the request may reach a handler; the handler still owns method, query, body,
+authentication, and domain validation.
+
 A public database-backed health or readiness function is a deliberate exception
 to the normal authenticated business-function shape. Keep only its HTTP request
 anonymous; keep its fixed database operation server-only and follow the

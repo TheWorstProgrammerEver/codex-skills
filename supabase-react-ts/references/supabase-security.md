@@ -210,6 +210,13 @@ Keep tests under `tests/integration/security`. They should run only against loca
 Cover at least:
 
 - Anonymous users cannot call business functions.
+- Each Edge Function's declared path ownership is covered at the handler and
+  local gateway boundaries. For a single-route function, keep an exact-path
+  positive and a suffix-path negative; the unit negative must prove the
+  database or effect adapter was not reached, and the gateway negative must use
+  `/functions/v1/<function-name>/unexpected`. For an intentional multi-route
+  function, cover every owned route class plus one unowned path instead of
+  rejecting all suffixes.
 - Public database-backed health endpoints remain callable without a user
   session, while direct `anon` and `authenticated` RPC calls are denied; use
   the [health endpoint test matrix](public-health-endpoints.md#validation-matrix).

@@ -42,5 +42,6 @@ if (!status.API_URL || !publishableKey || !serviceRoleKey) {
 const url = requireLocalOrigin(status.API_URL)
 const options = { auth: { autoRefreshToken: false, persistSession: false } }
 
+export const getLocalSupabaseConfig = () => ({ publishableKey, url })
 export const createAnonymousClient = () => createClient(url, publishableKey, options)
 export const createAdminClient = () => createClient(url, serviceRoleKey, options)

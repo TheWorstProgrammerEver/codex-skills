@@ -42,10 +42,11 @@ Set `verify_jwt = false` only for the public function. Then enforce all of these
 inside the handler before database access:
 
 1. Require the exact method, usually `GET`.
-2. Compare `new URL(request.url).pathname` with the exact pathname visible to
-   the function runtime. Supabase forwards suffixes under a function name, and
-   the handler sees a function-relative path such as `/health`, not the public
-   gateway prefix `/functions/v1/health`.
+2. Apply the architecture's [path-ownership
+   rule](architecture.md#edge-function-path-ownership): compare the runtime
+   pathname with the one exact health path. The handler sees a
+   function-relative path such as `/health`, not the public gateway prefix
+   `/functions/v1/health`.
 3. Reject suffixes such as `/health/unexpected`, query parameters, request
    bodies, and any other input outside the intentionally empty contract.
 4. Take a bounded request-budget slot before starting the database call. Bound
