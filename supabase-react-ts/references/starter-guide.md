@@ -142,3 +142,7 @@ Run only the relevant subset for small edits, but always run security tests afte
 After adding or renaming a function route, or after making an existing function
 import a new shared file, rerun `get-going` and confirm its configured function
 route checks pass before treating security-test failures as app logic failures.
+The starter's normal `npm test` command first verifies that every committed
+`tests/unit/**/*.test.*` file matches the configured Vitest include globs. Keep
+that discovery contract and both starter configurations aligned when adding a
+unit-test extension.

@@ -15,7 +15,7 @@
     "build:netlify": "node scripts/build-netlify.mjs",
     "preview": "vite preview",
     "lint": "tsc -b",
-    "test": "vitest run",
+    "test": "node scripts/validate-test-discovery.mjs && vitest run",
     "test:security": "vitest run --config vitest.security.config.ts",
     "test:visual": "playwright test",
     "supabase:start": "supabase start",

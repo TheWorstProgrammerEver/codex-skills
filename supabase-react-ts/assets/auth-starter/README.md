@@ -35,6 +35,10 @@ Press `Ctrl+C` to stop dev processes started by the script. Supabase containers 
 
 After adding the first product function, do not treat `app-health` alone as proof that the current branch is ready. If `app-health` is ready but another function route is `404`, or a business route returns `503` after adding shared imports, restart the local stack with `npm run all-done` and `npm run get-going` before running security tests. If Edge Runtime is healthy but Kong reports name-resolution failures, restarting the local Kong container for this Supabase project may be enough.
 
+## Unit Tests
+
+Run `npm test` for the unit suite. Before Vitest starts, the command verifies that every committed `tests/unit/**/*.test.*` file matches the configured include globs, so a new test extension cannot be skipped behind a green result.
+
 ## Runtime Config
 
 `public/config.js` is the committed browser loader. It synchronously loads one JSON config file:

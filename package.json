@@ -6,6 +6,6 @@
   "scripts": {
     "install:skills": "node scripts/install-skills.mjs",
     "list:skills": "node scripts/install-skills.mjs --list",
-    "test": "python3 -B -m unittest discover -s coding-style/tests -p 'test_*.py' && python3 -B -m unittest discover -s gh-address-comments/tests -p 'test_*.py' && python3 -B -m unittest discover -s gh-publish/tests -p 'test_*.py' && python3 -B -m unittest discover -s linear-agent-oauth/tests -p 'test_*.py' && python3 -B -m unittest discover -s linear-review-workflow/tests -p 'test_*.py'"
+    "test": "node --test supabase-react-ts/tests/*.test.mjs && python3 -B -m unittest discover -s coding-style/tests -p 'test_*.py' && python3 -B -m unittest discover -s gh-address-comments/tests -p 'test_*.py' && python3 -B -m unittest discover -s gh-publish/tests -p 'test_*.py' && python3 -B -m unittest discover -s linear-agent-oauth/tests -p 'test_*.py' && python3 -B -m unittest discover -s linear-review-workflow/tests -p 'test_*.py'"
   }
 }
