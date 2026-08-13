@@ -497,6 +497,66 @@ media-sanitization procedure separately when physical erasure is required.
 Use the interruption and swap scenarios in
 [`automated-testing.md`](automated-testing.md#transactional-sensitive-file-migration-tests).
 
+## Reversible Credential Rotation
+
+Treat replacement of an active host credential as a journaled transaction with
+an irreversible commit boundary. It is not two ordinary renames. Reuse the
+[crash-durable atomic-file protocol](#crash-durable-atomic-file-replacement)
+for every journal publication and directory-entry mutation, and reuse the
+[sensitive-file migration custody rules](#transactional-sensitive-file-migration)
+for protected entries rather than weakening either contract.
+
+Acquire one crash-released single-writer coordinator keyed to the credential
+store before reading its journal, active entry, rollback entry, candidate, or
+other custody state. Hold it through reconciliation, validation, and the
+complete install, rotate, rollback, commit, or revoke transition. Every public
+and recovery mutation path must enter through that coordinator; per-file locks
+or atomic journal writes do not prevent two callers from reconciling the same
+pre-state and replacing the only original rollback generation.
+
+Persist only a non-secret operation identity, phase, and the exact constrained
+operation-owned candidate and rollback identities needed for recovery. Publish
+the initial `installing` journal durably before moving the active entry, then
+apply this order:
+
+1. Seal, validate, and sync the replacement candidate without changing the
+   active entry.
+2. Rename the exact active generation to the journal-bound rollback entry and
+   sync the credential-store directory. Do not publish the replacement first
+   or proceed merely because the rollback name is visible.
+3. Rename the exact candidate to the active entry, sync the directory again,
+   validate the replacement through its production consumer, and only then
+   durably publish `staged`.
+4. For rollback, durably publish `rolling-back`, preserve or remove the staged
+   replacement only as an artifact owned by this operation, restore the exact
+   rollback entry to active, sync the directory, and validate the restored old
+   generation before journal and owned-artifact cleanup.
+5. For commit, durably publish `committing` before the first server-side
+   revocation or other irreversible retirement of the old generation. Revoke
+   and reconcile idempotently, then remove the rollback entry, sync the
+   directory, and remove the journal with its required directory sync.
+
+Recovery from `installing` or `rolling-back` is rollback-only. `staged` is a
+durable operator decision point: an ordinary restart may preserve it or an
+explicit rollback may consume it, but recovery must not silently begin commit
+or revocation. In every rollback path, reconstruct a fresh runtime, inspect
+only the journal-bound entries, and idempotently restore and validate the exact
+old generation before any server-side revocation. A durable `committing`
+record is forward-only because the old server credential may already be
+revoked; recovery must reconcile or finish revocation and cleanup, never
+restore the rollback ciphertext as an active credential. Fail closed on a
+missing, mismatched, ambiguous, or unowned entry instead of guessing from the
+visible pathname set. Make cleanup conditional on the current operation
+identity, and remove the journal only after the selected rollback or forward
+outcome is durable.
+
+Use the fresh-runtime, concurrency, and mutation matrix in
+[`automated-testing.md`](automated-testing.md#reversible-credential-rotation-tests).
+Keep the detailed rename and directory-sync mechanics canonical in
+[RYA-158](https://linear.app/ryan-hayward/issue/RYA-158/hive-mind-verify-directory-durability-on-atomic-write-recovery)
+and the protected-file transaction and secret-exclusion boundaries canonical
+in [RYA-171](https://linear.app/ryan-hayward/issue/RYA-171/hive-mind-document-reboot-safe-secret-migration-transactions).
+
 ## Temporary Credential Namespace Custody
 
 A mode-`0600` temporary credential leaf protects the bytes only after the
@@ -805,6 +865,27 @@ Use the separate-process and injected-clock matrix in
 - Keep mocked process tests for fast coverage, but do not use them alone to claim a live runner works. When the live path is part of the completion claim, run a narrow contract check or dry run against the target binary using the exact generated argument list. Prefer a check that reaches argument parsing without causing external side effects; otherwise use an isolated integration test and state the unverified boundary.
 - For wrappers around `codex exec`, inspect `codex exec --help` and exercise the wrapper-shaped arguments, including the production stdin mode, against the installed target CLI before claiming the live path works.
 - Treat stdin as part of a `codex exec` wrapper's prompt contract. When the complete prompt is already positional, close or ignore child stdin before waiting; do not inherit an accidentally open descriptor or leave the default pipe open, because the CLI can treat it as additional prompt input and wait for EOF. When the wrapper intentionally appends prompt input through stdin, make that streaming mode explicit and close the stream immediately after the final byte. Apply the focused EOF and streaming fixtures in [`automated-testing.md`](automated-testing.md#codex-exec-stdin-contract-tests).
+
+### Elevated Runtime Launchers
+
+Resolve and validate a private interpreter or runtime before crossing an
+elevation boundary. Require an absolute path, resolve it to the intended real
+executable, and verify the platform's regular-file, executable-mode, ownership,
+and trust policy. Pass that absolute runtime and an absolute validated
+entrypoint to the fixed elevated launcher; do not ask `sudo`, `doas`, a service
+manager, or a privileged shell to find `node`, `python`, or another private
+runtime through its restricted or attacker-influenced `PATH`.
+
+Invoke elevation non-interactively where the workflow requires unattended
+failure, separate launcher options from the command, and construct the child
+environment from the documented minimum. Keep secret-bearing and unrelated
+parent variables absent. Resolve and validate the runtime before accepting or
+hydrating secret input so a missing privileged runtime path cannot strand a
+credential in an unnecessary handoff. Exercise the exact final launcher,
+absolute runtime, entrypoint, and sanitized environment through
+[Final-Path Launcher Smoke Tests](automated-testing.md#final-path-launcher-smoke-tests)
+and the no-echo fixture in
+[No-Echo Credential Handoff And Elevation Tests](automated-testing.md#no-echo-credential-handoff-and-elevation-tests).
 
 ### Codex Structured Error Projections
 
