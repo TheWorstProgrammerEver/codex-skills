@@ -424,6 +424,13 @@ verification. For a target that cannot execute on the build host, run the smoke
 under a target-compatible emulator or on the actual target; never execute
 foreign target code natively on the build host. Keep static identity and
 placement checks as separate evidence rather than replacing either boundary.
+For an elevated launcher, run the exact production launcher with an isolated
+minimal parent environment and the target's effective restricted elevation
+environment. Assert that it passes the already resolved, validated absolute
+runtime and absolute entrypoint after the option boundary; a private runtime
+available only through the invoking user's `PATH` must not make the test pass.
+Mutate the launcher to pass only the runtime command name and require the smoke
+to fail before secret hydration or the effecting entrypoint.
 Use
 [`packaged-runtime-verification.md`](packaged-runtime-verification.md)
 for the canonical archive, executable identity, entrypoint-mode, placement
@@ -619,6 +626,57 @@ At minimum, prove this matrix:
   generalized secret-bearing schema cases in
   [Structural Secret Exclusion](#structural-secret-exclusion) rather than
   duplicating those matrices here.
+
+### Reversible Credential-Rotation Tests
+
+Drive the production credential store through injectable journal, rename,
+directory-sync, validation, revocation, and cleanup boundaries. After every
+interruption, discard the in-memory object and construct a fresh runtime
+against the same isolated store. Seed generated non-secret marker bytes for
+the original and replacement ciphertexts, and compare exact bytes so a test
+cannot pass after preserving or restoring the wrong generation.
+
+At minimum, exercise this matrix:
+
+| Interrupted boundary | Required fresh-runtime evidence |
+| --- | --- |
+| Before and after initial `installing` publication, including its rename and directory sync | No credential entry moves before durable intent. Recovery accepts only the complete journal bound to the current operation. |
+| Before and after `active -> rollback` | The exact original remains either active or at the journal-bound rollback entry; recovery restores it without accepting the candidate. |
+| Before and after the old-generation directory sync | Replacement publication cannot begin until preservation is synced. Recovery repeats the required sync and restores the exact original. |
+| Before and after `candidate -> active` and its directory sync | A visible replacement is not accepted as durable or staged. Recovery restores and validates the exact original, then removes only current-operation residue. |
+| Before and after `staged` publication | The replacement is considered staged only after production validation and durable phase publication; earlier interruption remains rollback-safe. |
+| Before and after `rolling-back`, both rollback renames, their directory syncs, restored-old validation, and cleanup | Repeated recovery completes rollback idempotently, preserves the original bytes, and does not remove unrelated or other-operation entries. |
+| Before and after `committing`, server-side revocation, rollback-entry removal, each directory sync, and journal cleanup | No revocation occurs before durable `committing`. Once that phase is durable, every restart finishes or reconciles forward and never reactivates the possibly revoked old generation. |
+
+Record the complete event order and assert the journal's operation identity on
+every recovery and cleanup action. Reject shape-valid but impossible
+phase/entry combinations before mutation using
+[Recovery Semantic-Invariant Tests](#recovery-semantic-invariant-tests). Reuse
+the directory-sync fault hooks from
+[Atomic File Durability Tests](#atomic-file-durability-tests) and the custody
+and secret-exclusion fixtures from
+[Transactional Sensitive-File Migration Tests](#transactional-sensitive-file-migration-tests)
+rather than replacing those contracts.
+
+Add a deterministic simultaneous-entry regression against the same store and
+the same pending replacement. Gate the first caller after it acquires the
+coordinator and publishes its journal. Start the second through the production
+mutation entrypoint and prove it remains outside all journal and credential
+reads and mutations until release. After the first settles, require the second
+to reject or reconcile the now-observed state without replacing the original
+rollback generation; rollback must restore the byte-exact pre-rotation
+ciphertext. Temporarily remove or narrow the coordinator so both calls can
+return success while rollback restores the replacement, and require this
+fixture to fail. Exercise install, rotate, commit, rollback, and revoke through
+the same crash-released coordinator and prove no alternate mutation path can
+bypass it.
+
+Mutation-check the ordering boundary by independently removing the pre-rename
+journal, old-generation directory sync, phase/entry semantic validation,
+`rolling-back` publication, and pre-revocation `committing` publication. Each
+mutation must fail at the intended interruption case. Keep every fixture under
+one test-owned temporary root, settle all gated callers in `finally`, and prove
+that no process, journal, candidate, rollback, lock, or unrelated file leaked.
 
 ### Whole-Directory Replacement Tests
 
@@ -1503,6 +1561,42 @@ Follow the production boundaries in
 [`general-implementation.md`](general-implementation.md#secret-bearing-cli-configuration-isolation)
 and
 [`general-implementation.md`](general-implementation.md#temporary-credential-namespace-custody).
+
+### No-Echo Credential Handoff And Elevation Tests
+
+Run the production public credential entrypoint, not an injected reader or a
+direct storage method, through a real pseudo-terminal. Snapshot the terminal
+attributes before launch and assert exact restoration after success, user
+cancellation, reader failure, child failure, and every supported signal path.
+Send a generated sentinel as the credential and prove the consumer receives
+the exact bytes while the PTY transcript does not echo them.
+
+Run the same entrypoint with redirected pipe input and require denial before
+reading or hydrating the credential, opening a secret-bearing temporary, or
+starting the storage/elevated child. Test EOF and cancellation while input is
+pending, plus an error after no-echo mode is enabled; each path must settle
+within a watchdog, restore terminal mode, close the PTY and child descriptors,
+and leave no process or file residue.
+
+Capture the complete production process tree's argument vectors, bounded
+stdout and stderr, structured logs, journal fixture, checkpoints, and
+test-owned files. Require the sentinel to be absent from every surface except
+the intended protected input and receiving in-process buffer, then clear that
+buffer. Reuse the protected-descriptor and cross-surface sentinel matrix from
+[RYA-294](https://linear.app/ryan-hayward/issue/RYA-294/hive-mind-add-post-hygieia-security-and-systemd-publication-gates)
+instead of restating its complete surface inventory. When systemd supplies the
+terminal, also apply the fd-routing contract in
+[`systemd-interactive-descriptors.md`](systemd-interactive-descriptors.md).
+
+Exercise the exact elevated launcher from that same entrypoint with the
+invoking runtime resolved to a validated absolute executable before input and
+with only the documented minimum environment. Make the invoking user's
+private runtime available under a directory absent from the elevation
+environment's `PATH`; the absolute-runtime path must still succeed. Mutate the
+launcher to delegate a bare runtime name to elevated `PATH` lookup and require
+failure before hydration or storage mutation. Assert the absolute entrypoint,
+non-interactive elevation options, option boundary, and environment allowlist,
+but keep every fixture path and marker generated and host-neutral.
 
 ## Environment Cleanup
 
