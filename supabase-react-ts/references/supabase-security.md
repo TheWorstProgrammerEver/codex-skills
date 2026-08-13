@@ -84,6 +84,12 @@ owner membership, use the complete
 keep active memberships and pending invitations in separate tables rather than
 representing an invitation as a pseudo-member.
 
+For an append-only tenant effect that needs both a monotonic local sequence and
+idempotent retries, use the complete
+[serialized tenant write pattern](supabase-serialized-writes.md). The tenant
+lock, current-principal authorization, sequence allocation, effect row, and
+idempotency row form one transaction boundary.
+
 ## RLS Helpers
 
 Prefer small SQL helper functions for repeated policy conditions:

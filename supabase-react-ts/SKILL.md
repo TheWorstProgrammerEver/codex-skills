@@ -20,6 +20,8 @@ Reference starters:
 4. For auth-only skeletons, run `scripts/scaffold.mjs` and skip app-data references until a persisted feature is requested.
 5. For data boundaries, Edge Functions, or request handling, read `references/architecture.md`.
 6. For schema, RLS, direct-table access, or security tests, read `references/supabase-security.md`.
+   For a tenant-scoped append-only write that combines monotonic ordering with
+   replay-safe retries, also read `references/supabase-serialized-writes.md`.
 7. For a public database-backed health or readiness function, read `references/public-health-endpoints.md`.
 8. For runtime config, Netlify builds, or local/LAN scripts, read `references/config-and-deploy.md`.
 9. Implement the usable app first, not a marketing page. Keep files small and concerns separated.
