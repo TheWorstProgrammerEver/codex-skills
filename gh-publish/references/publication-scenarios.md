@@ -10,6 +10,7 @@ Use this matrix to keep tool and PR-state choices explicit.
 | Connected GitHub creation succeeds | Use the connector for PR creation/metadata | Re-read the PR through GitHub and compare base, head, URL, and draft state |
 | Connector absent or unsuitable | Use the discovered host-approved scoped wrapper | Re-read the PR through the wrapper or connected metadata surface |
 | Scoped wrapper exists but Git push lacks credentials | Discover the approved Git askpass/helper separately | Remote branch resolves to the local commit after the real push |
+| Post-merge source branch cleanup races repository auto-delete | Resolve the exact merged PR head repository and ref, then delete or verify only that exact ref | Already-absent refs, successful deletes, and HTTP 422 delete races are complete only after a follow-up exact ref read reports HTTP 404 |
 | Approved helper cannot be found | Stop; do not start a personal/browser login flow | Report the missing host capability and the discovery paths checked |
 
 ## Authentication Discovery
@@ -23,6 +24,22 @@ redacted status check confirm their purpose.
 Do not hard-code a username, home directory, agent name, host name, private
 repository layout, or credential path into reusable instructions, commands, PR
 text, or fixtures.
+
+## Post-Merge Branch Cleanup
+
+Use `$linear-review-workflow` as the canonical apply-mode merge guidance. The
+publishing helper must not derive branch cleanup targets from local checkout
+state, remembered branch names, prefixes, or remote-tracking refs. After a PR is
+merged, re-read the PR, use the exact `head.repo.full_name` and `head.ref`, and
+preserve fork branches, base branches, stacked branches, release branches, and
+other documented preservation refs unless a human explicitly authorized that
+exact cleanup.
+
+For repository auto-delete races, the success condition is the authoritative
+absence of the exact ref. A pre-absent ref, a successful DELETE, or a DELETE
+that returns HTTP 422 `Reference does not exist` is complete only when a
+follow-up exact ref read returns HTTP 404. Any still-present ref, permission
+failure, transport failure, or repository/ref mismatch is cleanup incomplete.
 
 ## Failure Projection
 

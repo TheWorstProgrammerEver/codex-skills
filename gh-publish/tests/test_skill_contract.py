@@ -37,6 +37,17 @@ class GitHubPublishContractTest(unittest.TestCase):
         for private_identity in (*private_home_paths, "private-host.internal"):
             self.assertNotIn(private_identity, SKILL + SCENARIOS)
 
+    def test_post_merge_branch_cleanup_points_to_authoritative_ref_read(self) -> None:
+        self.assertIn("Post-merge source branch cleanup races repository auto-delete", SCENARIOS)
+        self.assertIn("Use `$linear-review-workflow` as the canonical", SCENARIOS)
+        self.assertIn("exact `head.repo.full_name` and `head.ref`", SCENARIOS)
+        self.assertIn("must not derive branch cleanup targets", SCENARIOS)
+        self.assertIn("HTTP 422 `Reference does not exist`", SCENARIOS)
+        self.assertIn("follow-up exact ref read returns HTTP 404", SCENARIOS)
+        self.assertIn("fork branches", SCENARIOS)
+        self.assertIn("stacked branches", SCENARIOS)
+        self.assertIn("release branches", SCENARIOS)
+
 
 if __name__ == "__main__":
     unittest.main()
