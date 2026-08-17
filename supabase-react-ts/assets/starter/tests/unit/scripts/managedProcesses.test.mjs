@@ -3,7 +3,8 @@ import { join } from 'node:path'
 import {
   mkdtempSync,
   readFileSync,
-  rmSync
+  rmSync,
+  writeFileSync
 } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
@@ -83,6 +84,8 @@ describe('managed process groups', () => {
     async () => {
       const fixtureDirectory = mkdtempSync(join(tmpdir(), 'starter-managed-processes-'))
       const descendantPidPath = join(fixtureDirectory, 'descendant.pid')
+      const launcherReadyPath = join(fixtureDirectory, 'launcher.ready')
+      const launcherReleasePath = join(fixtureDirectory, 'launcher.release')
       const managedProcesses = []
       let descendantIdentity
       let launcherIdentity
@@ -95,17 +98,21 @@ describe('managed process groups', () => {
           'setInterval(() => {}, 1000)'
         ].join(';')
         const launcher = [
+          "const { existsSync, writeFileSync } = require('node:fs')",
           "const { spawn } = require('node:child_process')",
-          `spawn(process.execPath, ['-e', ${JSON.stringify(resistantDescendant)}, process.argv[1]], { stdio: 'ignore' }).unref()`
+          `spawn(process.execPath, ['-e', ${JSON.stringify(resistantDescendant)}, process.argv[1]], { stdio: 'ignore' }).unref()`,
+          "writeFileSync(process.argv[2], String(process.pid))",
+          "const releasePoll = setInterval(() => { if (existsSync(process.argv[3])) clearInterval(releasePoll) }, 20)"
         ].join(';')
 
         startManagedProcess(
           managedProcesses,
           'resistant descendant fixture',
           process.execPath,
-          ['-e', launcher, descendantPidPath]
+          ['-e', launcher, descendantPidPath, launcherReadyPath, launcherReleasePath]
         )
 
+        await waitFor(() => readFixturePid(launcherReadyPath))
         launcherIdentity = await waitFor(() => {
           const current = readProcessIdentity(managedProcesses[0].child.pid)
           return isProcessExecuting(current) ? current : undefined
@@ -117,6 +124,7 @@ describe('managed process groups', () => {
           return isProcessExecuting(current) ? current : undefined
         })
 
+        writeFileSync(launcherReleasePath, 'release')
         await waitFor(() => (
           managedProcesses[0].child.exitCode !== null
           || managedProcesses[0].child.signalCode !== null
